@@ -1,0 +1,3280 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TP Lab — IAP2201 L1 MI</title>
+  <script>
+    // ============================================================
+    // CONFIGURATION DÉPLOIEMENT (Vercel, Netlify, etc.)
+    // ============================================================
+    // Pour pré-configurer la connexion Supabase de façon permanente
+    // (sans que chaque enseignant ait à saisir les clés), remplissez
+    // les deux lignes ci-dessous AVANT de déployer.
+    //
+    // Si vous laissez les valeurs vides, l'application affichera un
+    // écran de configuration au premier lancement.
+    // ------------------------------------------------------------
+    window.TPLAB_SUPABASE_URL = "https://ehwuvrblrzdwggbldhyd.supabase.co";   // ex: "https://xxxxx.supabase.co"
+    window.TPLAB_SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVod3V2cmJscnpkd2dnYmxkaHlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MjQ2MTMsImV4cCI6MjA5NDEwMDYxM30.EvCoLQP8vLzLdm3XSMh8rgWIt48a_ve9DTPV1B6EplE";   // votre clé "anon public"
+    // ============================================================
+  </script>
+  <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { background: #FAF7F2; margin: 0; }
+    @media print {
+      body { background: white !important; }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+    const { useState, useEffect, useMemo, useRef, createContext, useContext } = React;
+
+
+/* ============================================================
+   DESIGN TOKENS — academic editorial
+   ============================================================ */
+const C = {
+  bg: "#FAF7F2",
+  paper: "#FFFFFF",
+  ink: "#1B2A41",
+  inkSoft: "#4A5878",
+  inkMuted: "#8A93A6",
+  rule: "#E5DED1",
+  ruleSoft: "#F0EBE0",
+  accent: "#C25B3F",
+  accentDark: "#9F4A33",
+  accentSoft: "#F4E4DC",
+  present: "#5B7553",
+  presentSoft: "#E8EDE2",
+  absent: "#B85450",
+  absentSoft: "#F5DEDC",
+  warn: "#C68A2C",
+  warnSoft: "#F7EDD7",
+};
+
+const fontFace = `
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=DM+Sans:wght@400;500;600;700&display=swap');
+  .font-display { font-family: 'Fraunces', Georgia, serif; font-optical-sizing: auto; }
+  .font-body { font-family: 'DM Sans', system-ui, sans-serif; }
+  .num { font-variant-numeric: tabular-nums; }
+  @media print {
+    .no-print { display: none !important; }
+    body { background: white !important; }
+    .print-page { box-shadow: none !important; border: none !important; }
+  }
+`;
+
+/* ============================================================
+   ICONS — inline SVG (lucide-style paths)
+   ============================================================ */
+function I(children) {
+  return function IconCmp({ size = 16, ...props }) {
+    return React.createElement("svg", {
+      width: size, height: size, viewBox: "0 0 24 24", fill: "none",
+      stroke: "currentColor", strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round",
+      ...props,
+    }, children);
+  };
+}
+const Check = I(React.createElement("path", { d: "M20 6 9 17l-5-5" }));
+const XIcon = I([
+  React.createElement("path", { key: 1, d: "M18 6 6 18" }),
+  React.createElement("path", { key: 2, d: "m6 6 12 12" }),
+]);
+const ChevronRight = I(React.createElement("path", { d: "m9 18 6-6-6-6" }));
+const ChevronLeft = I(React.createElement("path", { d: "m15 18-6-6 6-6" }));
+const Plus = I([
+  React.createElement("path", { key: 1, d: "M5 12h14" }),
+  React.createElement("path", { key: 2, d: "M12 5v14" }),
+]);
+const Trash2 = I([
+  React.createElement("path", { key: 1, d: "M3 6h18" }),
+  React.createElement("path", { key: 2, d: "M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" }),
+  React.createElement("path", { key: 3, d: "M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" }),
+]);
+const AlertCircle = I([
+  React.createElement("circle", { key: 1, cx: 12, cy: 12, r: 10 }),
+  React.createElement("line", { key: 2, x1: 12, y1: 8, x2: 12, y2: 12 }),
+  React.createElement("line", { key: 3, x1: 12, y1: 16, x2: 12.01, y2: 16 }),
+]);
+const Save = I([
+  React.createElement("path", { key: 1, d: "M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" }),
+  React.createElement("polyline", { key: 2, points: "17 21 17 13 7 13 7 21" }),
+  React.createElement("polyline", { key: 3, points: "7 3 7 8 15 8" }),
+]);
+const Printer = I([
+  React.createElement("polyline", { key: 1, points: "6 9 6 2 18 2 18 9" }),
+  React.createElement("path", { key: 2, d: "M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" }),
+  React.createElement("rect", { key: 3, width: 12, height: 8, x: 6, y: 14 }),
+]);
+const Filter = I(React.createElement("polygon", { points: "22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" }));
+const LayoutDashboard = I([
+  React.createElement("rect", { key: 1, width: 7, height: 9, x: 3, y: 3, rx: 1 }),
+  React.createElement("rect", { key: 2, width: 7, height: 5, x: 14, y: 3, rx: 1 }),
+  React.createElement("rect", { key: 3, width: 7, height: 9, x: 14, y: 12, rx: 1 }),
+  React.createElement("rect", { key: 4, width: 7, height: 5, x: 3, y: 16, rx: 1 }),
+]);
+const CalendarDays = I([
+  React.createElement("rect", { key: 1, width: 18, height: 18, x: 3, y: 4, rx: 2 }),
+  React.createElement("line", { key: 2, x1: 16, y1: 2, x2: 16, y2: 6 }),
+  React.createElement("line", { key: 3, x1: 8, y1: 2, x2: 8, y2: 6 }),
+  React.createElement("line", { key: 4, x1: 3, y1: 10, x2: 21, y2: 10 }),
+]);
+const Users = I([
+  React.createElement("path", { key: 1, d: "M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" }),
+  React.createElement("circle", { key: 2, cx: 9, cy: 7, r: 4 }),
+  React.createElement("path", { key: 3, d: "M22 21v-2a4 4 0 0 0-3-3.87" }),
+  React.createElement("path", { key: 4, d: "M16 3.13a4 4 0 0 1 0 7.75" }),
+]);
+const ClipboardList = I([
+  React.createElement("rect", { key: 1, width: 8, height: 4, x: 8, y: 2, rx: 1 }),
+  React.createElement("path", { key: 2, d: "M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" }),
+  React.createElement("path", { key: 3, d: "M12 11h4" }),
+  React.createElement("path", { key: 4, d: "M12 16h4" }),
+  React.createElement("path", { key: 5, d: "M8 11h.01" }),
+  React.createElement("path", { key: 6, d: "M8 16h.01" }),
+]);
+const Search = I([
+  React.createElement("circle", { key: 1, cx: 11, cy: 11, r: 8 }),
+  React.createElement("path", { key: 2, d: "m21 21-4.3-4.3" }),
+]);
+const Download = I([
+  React.createElement("path", { key: 1, d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" }),
+  React.createElement("polyline", { key: 2, points: "7 10 12 15 17 10" }),
+  React.createElement("line", { key: 3, x1: 12, x2: 12, y1: 15, y2: 3 }),
+]);
+const UserCircle2 = I([
+  React.createElement("circle", { key: 1, cx: 12, cy: 12, r: 10 }),
+  React.createElement("circle", { key: 2, cx: 12, cy: 10, r: 3 }),
+  React.createElement("path", { key: 3, d: "M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662" }),
+]);
+const FileSpreadsheet = I([
+  React.createElement("path", { key: 1, d: "M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" }),
+  React.createElement("path", { key: 2, d: "M14 2v4a2 2 0 0 0 2 2h4" }),
+  React.createElement("path", { key: 3, d: "M8 13h2" }),
+  React.createElement("path", { key: 4, d: "M14 13h2" }),
+  React.createElement("path", { key: 5, d: "M8 17h2" }),
+  React.createElement("path", { key: 6, d: "M14 17h2" }),
+]);
+const TrendingUp = I([
+  React.createElement("polyline", { key: 1, points: "22 7 13.5 15.5 8.5 10.5 2 17" }),
+  React.createElement("polyline", { key: 2, points: "16 7 22 7 22 13" }),
+]);
+const Database = I([
+  React.createElement("ellipse", { key: 1, cx: 12, cy: 5, rx: 9, ry: 3 }),
+  React.createElement("path", { key: 2, d: "M3 5v14a9 3 0 0 0 18 0V5" }),
+  React.createElement("path", { key: 3, d: "M3 12a9 3 0 0 0 18 0" }),
+]);
+const Cloud = I(React.createElement("path", { d: "M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z" }));
+const CloudOff = I([
+  React.createElement("path", { key: 1, d: "M2 2l20 20" }),
+  React.createElement("path", { key: 2, d: "M5.782 5.782A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.307-.193" }),
+  React.createElement("path", { key: 3, d: "M21.532 16.5A4.5 4.5 0 0 0 17.5 10h-1.79A7.008 7.008 0 0 0 10 5.07" }),
+]);
+
+/* ============================================================
+   STUDENT DATA — 15 groups (seed; mutable at runtime via storage)
+   ============================================================ */
+const SEED_STUDENTS = {
+  1: [
+    "ALLANGBA IVAN CALEB", "AMANI SERGES MIKAEL", "APOUTE AHUE CHIA PRUNELLE MARIE EMMANUELA",
+    "ATHIN JEDIDJA JEAN ELIE", "BERTE MASSANDJE SAMIRA", "BONKOUNGOU AWA",
+    "COULIBALY NAHAWA", "DIARRA AICHATA", "DOMA CHRIST-EMMANUEL BAMS CURTIS",
+    "EKOU BROU DANIEL 3", "FANNY MAYELE FATIMATA", "FOFANA LADJI DAOUDA",
+    "FOFANA AHOUA DJAMILAH", "KARIDIOULA YEMIN SAFIATOU", "KOKONY CHO GRACE",
+    "KONAN MOYET STEPHANE ANGE-MOREL", "KONE DOUSSIGUE", "KONE TOUORNON",
+    "MANLAN AMETCHI CHRIST ELYSEE", "OBIKOUA AHECHI EMMANUEL RUBEN", "SANOU ISSOUF",
+    "SYLLA FATOUMATA", "YAO KOUAME ULRICH VASELENE", "YEKINI MUISATU ORIYOMI",
+    "ZAGRE MOHAMED",
+  ],
+  2: [
+    "AGON ARMEL VIANNEY", "AKPO KONIN RAOUL", "AKPO N'GORAN SYLVAIN",
+    "ASSI YAPO ISAAC MALONNE", "BAKAYOKO LACINA", "BAKAYOKO ZIBO TRESOR",
+    "BAMBA MOUSSA", "BINI YAO KOSSONOU ALEXIS", "BONGBA YOHOU HABIB ABRAHAM",
+    "BROU KOUAKOU EPHRAIM HECTOR", "DIABAGATE YASMINE ROXANE", "DIAKO YOAN-MAUREL SAMUEL MAHOUGNON",
+    "DIARRASSOUBA PAPA ALEX AZIZ", "KAMBIRE ERI MARINA", "KOFFI MOAYE PARFAIT",
+    "KONATE OUSMANE", "KONE KANY NAFOUSSATOU", "KOUAKOU ANWOUDJUE JUSTE SAMUEL",
+    "M'BADA KOUAKOU NATHAN LEMUEL", "N'GUESSAN KOUAME ANGE", "SANGARE YACOUBA",
+    "SERY LOU GOBIA PRISCILIA MARIA DORIANE", "TCHATCHA BEKE EDGARD CONSTANTIN",
+    "TIMITE TIEMOKO", "TRAORE N'DEDJO",
+  ],
+  3: [
+    "AZIZ CHEICK SHAZILI ARIFAI", "BADO BAKORA JEAN - MOHAMED OSCAR", "BAMBA MARIAME",
+    "BORA MAMADOU", "BRIO GRACE BENEDICTE", "CISSE BADRA ALI",
+    "COULIBALY LASSINA", "COULIBALY MOUSSA", "DADIE AMANI PRINCE",
+    "DANO OURAGA SHALOM ONESIME", "DIABY FALIKOU", "DIARRA OUMAROU",
+    "DJAHI N'THAO AFFOUE SACHA EUNICE", "FOFANA ABDOULAYE", "KARAMOKO NAWA",
+    "KARAMOKO NABINTOU DJOAMASSA", "KOUAME ANICET", "LIALY ADJE ROLAND ERSON",
+    "N'DOLI KOKO VICTOIRE KEREN", "N'GUESSAN KOUAME JEAN- MARC", "SIDIBE ABDOUL AZIZE",
+    "SOUARE MARIAM SAMASSI", "TOURE DRAMANE", "TRAORE SIRIKI", "YAO KOFFI SIMPLICE",
+  ],
+  4: [
+    "AKA AKA LUC MIGUEL", "AKA ESSOH YVES GREGOIRE", "ALADE WAHABI YOUSSIRATOU",
+    "APATA EMMANUEL LEVIS", "ASSI FRANCK OBERLIN", "BAILLO ABOUBACAR",
+    "BEUGRE GAVA ANGE JICKAEL", "COULIBALY MARIAM", "COULIBALY SOULEYMANE",
+    "DIAKITE ALASSANE", "DIALLO SAMIRA", "ETTIEN KEDJE BRAYANE",
+    "GOSSE ANGE ARIAL DAVID", "KOFFI EGOUALE PRINCE JEAN-BAPTISTE", "KONATE ABOULAYE",
+    "KONATE LACINA", "KOUADIO CHEFTIN BLEDJA GRACE-NOELLE", "KOUADIO N'GORAN FREJUS",
+    "N'GUESSAN AKISSI HONORAT MARIE COLOMBE", "N'TA ECRESSIN TOPPE ROSLY JOSIAS",
+    "OULAI BEONAHO ALEXANDRE", "RENE-CORAIL MARC YOHANN ANTONIN",
+    "SAVADOGO SHALÔM-CHRIST OWEN AMAN", "TIEFFOUE KELASSEMOU SAMUEL OSEE",
+    "ZOU BI DOULO SOSTHENE BIENVENU",
+  ],
+  5: [
+    "AHOUA OCTAVE VALERY", "AMON ASSAMOI CHRIST-EMMANUEL", "BIGUENE BELYKOKO BRIANA ANNE",
+    "BOGONE YOROLI JEAN NOEL", "BORA DRISSA", "DABRE SOUMAILA",
+    "DISU MONJIDAT AYOBAMI", "DONGO KOUAKOU KOSSIA ESTHER", "DOUMBIA KADIDIATOU JAMILA",
+    "IRIE BI TAH STEPHANE", "KONE AMAH", "KONE DJAKARIDJA",
+    "KONKOBO RAM ANGE EMMANUEL", "KOUADIO YAO", "KOUAKOU YAO EMMANUEL KANT",
+    "KOUYATE BADRA ALY", "N'DRI KOUASSI SAMUEL", "N'ZI ASSADEI KOUASSI DANIEL",
+    "OUATTARA HALIMA SANIA", "OYELADE JANET O. BUKOLA", "SAGDOUDEIE IBRAHIM",
+    "SEUTOUEU YANN ABDOUL RACHID", "SILUE TCHEREGUAGNIGUI AICHA", "TIA HAROLD JEAN SALOMON",
+    "YEO TCHEREGNIMA ABDOUL AZIZ",
+  ],
+  6: [
+    "ADOU JUNIOR JEAN-ELISEE", "ASSOA KOUASSI DAVID ARNAUD", "ATSE DIEUDONNE DENOS",
+    "BAKAYOKO ISSIAKA", "BALLO BRAHIMA", "BAMBA FATOUMATA",
+    "BINERY KOUASSI DANIEL OSEE", "CAMARA OUMOU", "CHERIF MABASSOU MAMADOU",
+    "COULIBALY KARAMOKO", "COULIBALY FAFOLO ZANA IBRAHIM", "FOFANA AMINATA",
+    "GOUAHE AMOIN GRACE KONNIE", "KANGBE ZATA CYRILLE", "KONAN KOUADIO SAINT MOISE",
+    "KOUAKOU CHRIST EVANN MESCHAC", "KOUAME FRANCK ELY", "OUATTARA NANZELEBE DJENEBA",
+    "PRAO KOFFI CHRIST", "SYLLA LOSSENI ALASSANE", "TRAORE SERGE MALIK",
+    "TRAORE MAIMOUNA", "YAO JEAN STEPHANE LUDOVIC", "YAO CYNTHIA AKISSI BENEDICTE",
+    "YEBE GNAHOUA JOSUE",
+  ],
+  7: [
+    "BANGA PRINCE CHRISTOPHER AHOUSSI", "BINI KOUAKOU ADAYE AMOS",
+    "BLEOU KABLAN HENOC BENAJA", "DIAKITE MARIAM", "DOUMBIA BADRA BEN ALI",
+    "FOFANA ABDOUL-MOHAMED YASSINE", "GOUAHE AMOIN GRÂCE KONNIE",
+    "GROBRY SERI BALLIE JEAN HUGUES", "KEITA KASSOUM", "KOFFI KONAN ABRAHAM ELISEE",
+    "KOFFI AKAFFOU YANNE ARGENCE", "KONAN ANGE MICHEL", "LOHORE ARIANE ESTHER",
+    "ME KONAN OTHNIEL EBENEZER", "MOBIO LOBA JEAN-BAPTISTE JUNIOR", "NASR WAFFIKAT",
+    "NIANGUIA GNAMIEN EMMANUEL", "OKA SAMUEL NYANMIEN TIKPA", "SANGARÉ YACOUBA",
+    "SOGODOGO BRAHIMA", "SORO KPO GNOUDANFOWA", "SYLLA DJENEBA",
+    "TOURE MAMERY", "YEO WONDJANWA", "ZEKOU SAMUEL RETSIN KOUCREY",
+  ],
+  8: [
+    "AKABLA BRICE MAXIME EMMANUEL", "AKO ULRICH ASTRIDE", "BAMBA AGUIBOU",
+    "BEIBRO BECANTY ALICIA DEBORAH", "BROU KOUAKOU EPHRAÏM HECTOR", "DJABIA NZEBO LEON",
+    "DOUMBIA BARAKISSA", "GBANE ALMAMY", "KEITA ABDOULAYE",
+    "KONAN SIKSIA CHLOE URSULLA", "KOUYATE YAYA", "N'ZI ASSADEI KOUASSI DANIEL",
+    "OUATTARA ABOUDRAMANE", "OUATTARA DJAKARIDJA", "OUATTARA SEYDOU",
+    "SANGUISSO ALASSANE", "SERY LOU MARIA", "SOBE ABOUCHOU ERNEST CHRIS SAMUEL",
+    "SORO TIOHOBE DAOUDA DAVID BIENVENU", "SORO KPÔ GNOUDANFOWA", "SOUMAHORO KARIDJA",
+    "TOURÉ HAWA", "TRAORE CHEICK MOHAMED TIDJANE", "YAO YAO JEAN-LUC",
+  ],
+  9: [
+    "ABA ABA FRANCK NEVEN", "ALLA AKISSI MARIE ARIANE", "BAKAYOKO YAYA VADAM",
+    "BERETE MOHAMED", "DEBLE LOBE GRACE", "DIARRA ABOUBACAR",
+    "DRAME YOUSSOUF", "KOFFI AMANI EZECHIEL", "KOFFI KOBENAN BRICE IVAN",
+    "KOUAKOU CYRILLE DÉSIRÉ DJOMAN", "KOUAME MOAYE DAVID YVANN", "KOUASSI ATTE GHISLAIN .N",
+    "LATT NONMEL CHRIST OTHNIEL DENIS", "MELLESS AKMEL JEAN CLAVER",
+    "MOBIO YAPO AKADJE PROSPER", "N'DA ADJOKOU PATRICK", "N'GUESSAN FAMIEN ANGE EMMANUEL",
+    "N'GUETTA KONAN EZEKIEL", "N'ZUE JEAN CHRIST EMMANUEL", "SAMUEL TIEFFOUE",
+    "SANGARE ABOULAYE", "THESSIA BETSALEEL JUNIOR", "TOURE MOUHAMMED MEASSE",
+    "ZAMBLE BI ZAMBLE INNOCENT",
+  ],
+  10: [
+    "KOUAKOU N'KLOYAMIEN ANGE FABRICE", "KREME KOUAME THIERRY", "DIAKITE AZIZ MOUSSA",
+    "KONE PIENAN", "FOFANA MORY", "KONAN SARAH VALENCIA",
+    "KOUASSI DOUFFI N'DA NICANOR", "LEKA GUEASSON PAUL ELIE MONDESIR",
+    "YOUAN LOU LESLIE VANICHTA", "SANOGO BALAKISSA GLORIA", "SIDIBE ABDOUL KARIM",
+    "MICHIGUIE ADIA URIEL", "TRAORE ODOU", "SARAKA EZECHIEL ESMEL",
+    "TAHOU GUELASSEH WILFRIED", "BAKAYOKO FATOU CARENE", "KONATE BAZOUMANA",
+    "KONE DJENEBA", "KONATE AWA", "OUATTARA YAHAYA",
+    "ATTOUNGBRE KONAN EFFAH", "BOUADOU GRACE BONI KARELL", "KONE DRISSA",
+    "TANOH KOUADIO ERIC", "ZELYOLET JEAN-BAPTISTE ADJOUSSOU",
+  ],
+  11: [
+    "ADJOUMANE KOUAME JONATHAN MOYE", "BAKAYOKO MOUSSA", "BOLI GUY JEAN ARMEL LEVI",
+    "BROU KOUSSO AIMEE MICHELLE", "COULIBALY POWE", "COULIBALY AMINATA",
+    "DEDO EDEN GRACE-DIVINE", "DIABY NASSERE", "GNAKO RICHMOND",
+    "GOMAN KOUYEMUN IDA YASSINE", "GUEI OSEHT", "KAMARA MARIAM",
+    "KOFFI KOUAME EXEL DILONE", "KONAN KONAN OSEE", "KOUAKOU CYRILLE DESIRE DJOMAN",
+    "KOUASSI AHOU EVA-GRACE", "LIASSU MARIAM MODJI", "N'GUESSAN KONAN TANGUY ROXANE",
+    "N'ZI YEBOUE GRACE EPIPHANIE", "OBROU RAYMONDE AUDREY", "OUATTARA FOUNGNIGUE ABDOULAYE",
+    "OUHAI RITA BIENVENUE", "POUDIOUGO RUTH", "SAO DEA SITA DORES",
+    "SORO CHIGATHA MARIAM SAMUELLA",
+  ],
+  12: [
+    "AKOBE ANDOH YVANN GUY NATHAN", "AYAGA AVOH JEAN-LOUIS", "BAKAYOKO MAMADOU",
+    "CHIEKE EDI ENCE ARISTIDE", "CISSE DAOUDA", "COULIBALY SAMOUKA",
+    "DIARRASSOUBA ABDOULAYE", "DJE KOUAME ALLAN MAEL HERVE", "FANNY AROUNA",
+    "GBOCHO EBE GRACE STEPHANIE", "GROBRY SERI BALLIE JEAN-HUGUES", "KAMAGATE INZA",
+    "KLANDJI DIBY MARC OLIVIER", "KONAN FOUGBE ANGE MICHEL", "KONAN ALLOU RENE EMMANUEL",
+    "KOUADIO YAO ALEX XAVIER", "KOUAKOU MARK ARTHUR CEDRIC", "KOUAKOU KOUASSI NOEL",
+    "KOUAME N'GUETTIA WILFRIED", "KOUAO ASSEMIEN JEAN EMMANUEL",
+    "MOUSSAN CHIACHI GRACE STEPHANIE", "OUATTARA GNIRE KARIDJATOU", "TRAORE ISSOUF",
+    "ZERBO ISSOUF", "ZIMBRIL YAO EMMANUEL",
+  ],
+  13: [
+    "ADOU KROU ULRICH", "AZIAGBEDE HILARY GRACE", "BASSANDE NASSINI",
+    "CHERIF ABDOULAYE MOUSSA", "DIABATE ABOUBAKAR SIDICK", "DIOMANDE ZOUMANA",
+    "GOUHIZOUN CLICHY PRECIEUX STENADY CHEGUN", "KOFFI YAO ELIE", "KONE NAMINATA",
+    "KOUADIO AFFOUE CHRISTELLE", "KOUAME MOAYE DAVID-YVANN", "KOUAO KOUAME AHI YANN CARMEL",
+    "KOUTOUAN N'GBESSO SETH-CHRIST FRANCIS", "KRA KOUAME EUFREME BIENVENU",
+    "NANGUI EMMANUEL", "N'GUESSAN WARCO ANGE THEO", "NIOULE MONHINEDI ANGE ROSINE",
+    "SERME MARIETOU", "SIONNE LEILA", "SOLAMA DJENEBA ESTELLE",
+    "SYLLA NAMINATA", "TOGUIRA JOEL BENJAMIN PATRICK", "TRAORE ADAM",
+    "ZARE AZIZ", "ZON MOHAMED",
+  ],
+  14: [
+    "ADOU EHOUMAN HENRI-JOEL", "ALLAH BEYOGBIN CHRIST EMMANUEL",
+    "ATSE SOPIE KARELL ALIXIA", "BAMBA SOULEYMANE", "BANDAMA KOUASSI OSCAR",
+    "BLA N'SIMANSO AHOU CLARISSE", "BLI DEGNANTIN ANGE MICKAEL",
+    "COCOU MESSI CHRIST - EMMANUEL D'AVILA", "COULIBALY YELE ANAELLE CANDIDE",
+    "DJAMA NANDO EMMANUEL MARIE", "DOSSO MAMADOU", "DOUBI BI ZOU DICKAEL",
+    "KOHOU N'CHO EZEKIEL JULIEN", "KONAN YAO PRINCE", "KONAN YAO ELISÉ",
+    "KONATE ABDOULAYE", "MIESSAN SEYWOKA BIE AKOUNOU F.", "ODET JEAN-NOEL WILFRIED NANDI",
+    "OUATTARA N'GOLO SEKOU", "OUATTARA MARIA", "SOUATE RHINA ARMANDE EPIPHANIE",
+    "TANOH GRACE BENEDICTE ADORATION", "TRAORE ALMAM", "YAPI KOKOLA CHRISTIAN DANIEL",
+    "ZONGO MAIMOUNA",
+  ],
+  15: [
+    "COULIBALY GNIRE AICHATOU", "DIARRA NAMINATA", "DIBY AFFOUE GRACE REBECCA",
+    "IRIE BI ZAKA JEAN JACQUES", "KASSI JEAN CHRIST IVAN ALBERT", "KEITA AMINATA",
+    "KOFFI KOBENAN IVAN BRICE", "KONE IBRAHIMA", "TITO SEMION SABINE",
+    "TOURE HAWA", "ZAMBLE BI DJE CEDRIC-JUNIOR",
+  ],
+};
+
+// Convert seed (group → [name]) into runtime shape (group → [{id, name}])
+function seedToStudents(seed) {
+  const out = {};
+  Object.keys(seed).forEach((g) => {
+    out[g] = seed[g].map((name, i) => ({ id: `G${g}-${i + 1}`, name }));
+  });
+  return out;
+}
+
+function listGroups(students) {
+  return Object.keys(students).map(Number).sort((a, b) => a - b);
+}
+function countTotal(students) {
+  return Object.values(students).reduce((s, l) => s + l.length, 0);
+}
+function nextStudentNumber(students, groupId) {
+  const arr = students[groupId] || [];
+  const max = arr
+    .map((s) => parseInt(String(s.id).split("-").pop(), 10))
+    .filter((n) => !isNaN(n))
+    .reduce((m, n) => Math.max(m, n), 0);
+  return max + 1;
+}
+function nextGroupId(students) {
+  const ids = listGroups(students);
+  return ids.length ? Math.max(...ids) + 1 : 1;
+}
+
+// Normalize a student name for cross-group uniqueness checks:
+// strip diacritics, lowercase, treat apostrophes/hyphens as spaces,
+// remove other punctuation, collapse whitespace.
+function normalizeName(name) {
+  return String(name || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/['\u2019\-]/g, " ")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Search every group for a student with the same normalized name.
+// excludeId optionally skips that student id (useful when renaming).
+function findStudentByName(students, name, excludeId = null) {
+  const target = normalizeName(name);
+  if (!target) return null;
+  for (const g of Object.keys(students)) {
+    for (const s of students[g] || []) {
+      if (s.id === excludeId) continue;
+      if (normalizeName(s.name) === target) {
+        return { group: Number(g), id: s.id, name: s.name };
+      }
+    }
+  }
+  return null;
+}
+
+// Find all students that appear in more than one group.
+// Returns: [{ key, occurrences: [{group, id, name}] }, ...]
+function findCrossGroupDuplicates(students) {
+  const buckets = new Map();
+  Object.keys(students).forEach((g) => {
+    (students[g] || []).forEach((s) => {
+      const key = normalizeName(s.name);
+      if (!key) return;
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push({ group: Number(g), id: s.id, name: s.name });
+    });
+  });
+  const dups = [];
+  for (const [key, occ] of buckets) {
+    const groups = new Set(occ.map((o) => o.group));
+    if (groups.size > 1) dups.push({ key, occurrences: occ });
+  }
+  return dups.sort((a, b) => a.occurrences[0].name.localeCompare(b.occurrences[0].name));
+}
+
+/* ============================================================
+   SCHEDULE — Salle × Day × Slot → Group(s)
+   Week 1 starts Mon 11 May 2026
+   ============================================================ */
+const DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"];
+const SLOTS = ["08h00–10h30", "10h30–13h00", "13h00–15h30"];
+const ROOMS = ["Salle 1", "Salle 2", "Salle 3", "Salle 4"];
+
+// Each room has its 3 groups rotating across slots & days
+const ROOM_GROUPS = {
+  "Salle 1": [[1], [2], [3]],
+  "Salle 2": [[4], [5], [6]],
+  "Salle 3": [[7], [8], [9]],
+  "Salle 4": [[10, 11], [12, 13], [14, 15]],
+};
+
+// Rotation pattern (slot, day) → which of the 3 groups (index 0-2)
+// Reading the PDF: matrix is rotated diagonally
+function getGroupForSlot(room, dayIdx, slotIdx) {
+  // pattern from PDF (row=slot, col=day):
+  // row 0: 0 1 2 0 1
+  // row 1: 1 2 0 1 2
+  // row 2: 2 0 1 2 0
+  const idx = (slotIdx + dayIdx) % 3;
+  return ROOM_GROUPS[room][idx];
+}
+
+function groupsLabel(groups) {
+  return groups.map((g) => `G${g}`).join(" & ");
+}
+
+function dateForDayIndex(weekStart, dayIdx) {
+  const d = new Date(weekStart);
+  d.setDate(d.getDate() + dayIdx);
+  return d;
+}
+
+function fmtDate(d) {
+  return d.toLocaleDateString("fr-FR", {
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
+  });
+}
+
+function fmtDateShort(d) {
+  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+function isoDate(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+const WEEK_1_START = new Date("2026-05-11"); // Lundi 11 mai 2026
+
+function getMondayOf(date) {
+  const d = new Date(date);
+  const day = d.getDay(); // 0=Sun..6=Sat
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/* ============================================================
+   SUPABASE PERSISTENCE LAYER
+   ============================================================ */
+const KEY_CFG_URL = "tplab:supabase_url";
+const KEY_CFG_KEY = "tplab:supabase_key";
+const KEY_CURRENT = "tplab:current_teacher";
+
+// Each App component holds its own Supabase client in a ref. Helpers below
+// translate between the JS shape used by the UI and the SQL row shape.
+function sessionFromRow(r) {
+  return {
+    id: r.id, date: r.date, day: r.day, slot: r.slot,
+    room: r.room, groups: r.groups, teacher: r.teacher,
+    attendance: r.attendance || {},
+    createdAt: Number(r.created_at),
+    updatedAt: Number(r.updated_at),
+  };
+}
+function sessionToRow(s) {
+  return {
+    id: s.id, date: s.date, day: s.day, slot: s.slot,
+    room: s.room, groups: s.groups, teacher: s.teacher,
+    attendance: s.attendance || {},
+    created_at: s.createdAt || Date.now(),
+    updated_at: s.updatedAt || Date.now(),
+  };
+}
+function studentsRowsToMap(rows) {
+  const out = {};
+  (rows || []).forEach((r) => {
+    if (!out[r.group_id]) out[r.group_id] = [];
+    out[r.group_id].push({ id: r.id, name: r.name });
+  });
+  return out;
+}
+
+const SUPABASE_SQL = `-- TP Lab — schéma de base de données
+-- À coller dans Supabase : Database → SQL Editor → New query → Run
+
+CREATE TABLE IF NOT EXISTS students (
+  id TEXT PRIMARY KEY,
+  group_id INT NOT NULL,
+  name TEXT NOT NULL,
+  position INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS students_group_id_idx ON students(group_id);
+
+CREATE TABLE IF NOT EXISTS sessions (
+  id TEXT PRIMARY KEY,
+  date DATE NOT NULL,
+  day TEXT NOT NULL,
+  slot TEXT NOT NULL,
+  room TEXT NOT NULL,
+  groups JSONB NOT NULL,
+  teacher TEXT,
+  attendance JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at BIGINT NOT NULL,
+  updated_at BIGINT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS sessions_date_idx ON sessions(date);
+
+CREATE TABLE IF NOT EXISTS teachers (
+  name TEXT PRIMARY KEY,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE students ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE teachers ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "tplab_anon_all" ON students;
+DROP POLICY IF EXISTS "tplab_anon_all" ON sessions;
+DROP POLICY IF EXISTS "tplab_anon_all" ON teachers;
+
+CREATE POLICY "tplab_anon_all" ON students FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "tplab_anon_all" ON sessions FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "tplab_anon_all" ON teachers FOR ALL USING (true) WITH CHECK (true);
+
+-- Optionnel : activer la réplication temps réel
+ALTER PUBLICATION supabase_realtime ADD TABLE students;
+ALTER PUBLICATION supabase_realtime ADD TABLE sessions;
+ALTER PUBLICATION supabase_realtime ADD TABLE teachers;`;
+
+
+/* ============================================================
+   STUDENTS CONTEXT — runtime, mutable, persisted
+   ============================================================ */
+const StudentsCtx = createContext(null);
+function useStudents() {
+  return useContext(StudentsCtx);
+}
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+const splitName = (full) => {
+  // Heuristic: first word(s) are surname (UPPERCASE convention used in PDF)
+  // We'll show the full name as-is but allow splitting for sort
+  const parts = full.trim().split(/\s+/);
+  return { nom: parts[0], prenom: parts.slice(1).join(" ") };
+};
+
+function newSessionId() {
+  return "s_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 7);
+}
+
+function emptyAttendance(students, groups) {
+  const out = {};
+  groups.forEach((g) => {
+    (students[g] || []).forEach((s) => {
+      out[s.id] = { present: false, grade: null, comment: "" };
+    });
+  });
+  return out;
+}
+
+/* ============================================================
+   COMPONENT — TeacherGate
+   ============================================================ */
+function TeacherGate({ teachers, onPick, onAdd }) {
+  const [name, setName] = useState("");
+  return (
+    <div className="min-h-screen flex items-center justify-center px-6"
+      style={{ background: C.bg }}>
+      <div className="max-w-md w-full p-10 rounded-sm"
+        style={{ background: C.paper, border: `1px solid ${C.rule}` }}>
+        <div className="text-xs uppercase tracking-[0.2em] mb-3" style={{ color: C.accent }}>
+          IAP2201 · L1 MI · UNA UFR-SFA
+        </div>
+        <h1 className="font-display text-4xl mb-2" style={{ color: C.ink }}>
+          TP <span style={{ fontStyle: "italic" }}>Lab</span>
+        </h1>
+        <p className="text-sm mb-8" style={{ color: C.inkSoft }}>
+          Cahier d'appel et notation pour les travaux pratiques.<br />
+          Indiquez votre nom pour commencer.
+        </p>
+
+        {teachers.length > 0 && (
+          <div className="mb-6">
+            <div className="text-xs uppercase tracking-wider mb-3" style={{ color: C.inkMuted }}>
+              Enseignants déjà connus
+            </div>
+            <div className="space-y-2">
+              {teachers.map((t) => (
+                <button key={t} onClick={() => onPick(t)}
+                  className="w-full text-left px-4 py-3 text-sm flex items-center justify-between hover:opacity-80 transition"
+                  style={{ background: C.bg, border: `1px solid ${C.rule}`, color: C.ink }}>
+                  <span className="font-medium">{t}</span>
+                  <ChevronRight size={16} style={{ color: C.inkMuted }} />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div>
+          <div className="text-xs uppercase tracking-wider mb-3" style={{ color: C.inkMuted }}>
+            Nouveau profil
+          </div>
+          <div className="flex gap-2">
+            <input
+              value={name} onChange={(e) => setName(e.target.value)}
+              placeholder="Votre nom"
+              className="flex-1 px-4 py-3 text-sm outline-none focus:ring-1"
+              style={{ background: C.bg, border: `1px solid ${C.rule}`, color: C.ink }}
+            />
+            <button
+              onClick={() => { if (name.trim()) { onAdd(name.trim()); } }}
+              className="px-5 py-3 text-sm font-medium text-white hover:opacity-90 transition"
+              style={{ background: C.accent }}
+            >
+              Continuer
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   COMPONENT — Header
+   ============================================================ */
+function Header({ teacher, onChangeTeacher, view, setView }) {
+  const tabs = [
+    { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard },
+    { id: "planning", label: "Planning", icon: CalendarDays },
+    { id: "sessions", label: "Séances", icon: ClipboardList },
+    { id: "groups", label: "Groupes", icon: Users },
+    { id: "search", label: "Recherche", icon: Search },
+    { id: "exports", label: "Exports", icon: Download },
+  ];
+  return (
+    <header className="no-print" style={{ background: C.paper, borderBottom: `1px solid ${C.rule}` }}>
+      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 flex items-center justify-center"
+            style={{ background: C.ink, color: C.bg }}>
+            <span className="font-display text-lg italic">L</span>
+          </div>
+          <div>
+            <div className="font-display text-xl leading-none" style={{ color: C.ink }}>
+              TP <span style={{ fontStyle: "italic" }}>Lab</span>
+            </div>
+            <div className="text-[10px] uppercase tracking-[0.18em]" style={{ color: C.inkMuted }}>
+              IAP2201 · L1 MI
+            </div>
+          </div>
+        </div>
+
+        <button onClick={onChangeTeacher}
+          className="flex items-center gap-2 px-3 py-2 text-sm hover:opacity-80 transition"
+          style={{ background: C.bg, border: `1px solid ${C.rule}`, color: C.ink }}>
+          <UserCircle2 size={16} />
+          <span className="font-medium">{teacher}</span>
+        </button>
+      </div>
+      <nav className="max-w-7xl mx-auto px-6 flex gap-1 overflow-x-auto">
+        {tabs.map((t) => {
+          const active = view === t.id;
+          const Icon = t.icon;
+          return (
+            <button key={t.id} onClick={() => setView(t.id)}
+              className="flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition"
+              style={{
+                color: active ? C.accent : C.inkSoft,
+                borderBottom: active ? `2px solid ${C.accent}` : "2px solid transparent",
+                marginBottom: -1,
+              }}>
+              <Icon size={15} />
+              {t.label}
+            </button>
+          );
+        })}
+      </nav>
+    </header>
+  );
+}
+
+/* ============================================================
+   COMPONENT — Dashboard
+   ============================================================ */
+function Dashboard({ sessions, teacher, onOpenSchedule, onOpenSession }) {
+  const { students } = useStudents();
+  const totalStudents = countTotal(students);
+  const groupCount = listGroups(students).length;
+  const totalSessions = sessions.length;
+  const allRecords = sessions.flatMap((s) => Object.values(s.attendance || {}));
+  const presents = allRecords.filter((r) => r.present).length;
+  const presenceRate = allRecords.length ? (presents / allRecords.length) * 100 : 0;
+  const grades = allRecords.filter((r) => r.grade != null && !isNaN(r.grade)).map((r) => Number(r.grade));
+  const avgGrade = grades.length ? grades.reduce((a, b) => a + b, 0) / grades.length : null;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayIso = isoDate(today);
+  const todaySessions = sessions
+    .filter((s) => s.date === todayIso)
+    .sort((a, b) => a.slot.localeCompare(b.slot));
+
+  const recent = [...sessions].sort((a, b) => b.createdAt - a.createdAt).slice(0, 6);
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <div className="text-xs uppercase tracking-[0.2em] mb-2" style={{ color: C.accent }}>
+          Bonjour {teacher}
+        </div>
+        <h1 className="font-display text-4xl" style={{ color: C.ink }}>
+          {fmtDate(today).charAt(0).toUpperCase() + fmtDate(today).slice(1)}
+        </h1>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Stat label="Étudiants" value={totalStudents} sub={`${groupCount} groupes`} />
+        <Stat label="Séances saisies" value={totalSessions} sub="depuis le début" />
+        <Stat label="Taux de présence"
+          value={allRecords.length ? presenceRate.toFixed(1) + "%" : "—"}
+          sub={`${presents}/${allRecords.length} présents`} />
+        <Stat label="Moyenne générale"
+          value={avgGrade != null ? avgGrade.toFixed(2) + "/20" : "—"}
+          sub={`${grades.length} notes`} />
+      </div>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        <section className="p-6" style={{ background: C.paper, border: `1px solid ${C.rule}` }}>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-display text-xl" style={{ color: C.ink }}>Aujourd'hui</h2>
+            <button onClick={onOpenSchedule}
+              className="text-xs uppercase tracking-wider hover:underline" style={{ color: C.accent }}>
+              Voir le planning
+            </button>
+          </div>
+          {todaySessions.length === 0 ? (
+            <div className="text-sm py-8 text-center" style={{ color: C.inkMuted }}>
+              Aucune séance saisie aujourd'hui.
+            </div>
+          ) : (
+            <ul className="divide-y" style={{ borderColor: C.ruleSoft }}>
+              {todaySessions.map((s) => (
+                <li key={s.id}>
+                  <button onClick={() => onOpenSession(s.id)}
+                    className="w-full text-left py-3 flex items-center justify-between hover:opacity-80">
+                    <div>
+                      <div className="text-sm font-medium" style={{ color: C.ink }}>
+                        {s.room} · {groupsLabel(s.groups)}
+                      </div>
+                      <div className="text-xs" style={{ color: C.inkMuted }}>
+                        {s.slot} · {Object.values(s.attendance).filter((r) => r.present).length} présents
+                      </div>
+                    </div>
+                    <ChevronRight size={16} style={{ color: C.inkMuted }} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="p-6" style={{ background: C.paper, border: `1px solid ${C.rule}` }}>
+          <h2 className="font-display text-xl mb-4" style={{ color: C.ink }}>Séances récentes</h2>
+          {recent.length === 0 ? (
+            <div className="text-sm py-8 text-center" style={{ color: C.inkMuted }}>
+              Pas encore de séance enregistrée.
+            </div>
+          ) : (
+            <ul className="divide-y" style={{ borderColor: C.ruleSoft }}>
+              {recent.map((s) => (
+                <li key={s.id}>
+                  <button onClick={() => onOpenSession(s.id)}
+                    className="w-full text-left py-3 flex items-center justify-between hover:opacity-80">
+                    <div>
+                      <div className="text-sm font-medium" style={{ color: C.ink }}>
+                        {groupsLabel(s.groups)} · {s.room}
+                      </div>
+                      <div className="text-xs" style={{ color: C.inkMuted }}>
+                        {fmtDateShort(new Date(s.date))} · {s.slot} · {s.teacher}
+                      </div>
+                    </div>
+                    <ChevronRight size={16} style={{ color: C.inkMuted }} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function Stat({ label, value, sub }) {
+  return (
+    <div className="p-5" style={{ background: C.paper, border: `1px solid ${C.rule}` }}>
+      <div className="text-xs uppercase tracking-wider mb-3" style={{ color: C.inkMuted }}>
+        {label}
+      </div>
+      <div className="font-display text-3xl num" style={{ color: C.ink }}>{value}</div>
+      <div className="text-xs mt-2" style={{ color: C.inkSoft }}>{sub}</div>
+    </div>
+  );
+}
+
+/* ============================================================
+   COMPONENT — Planning
+   ============================================================ */
+function Planning({ sessions, onStartSession, onOpenSession }) {
+  const [weekStart, setWeekStart] = useState(() => getMondayOf(new Date()));
+
+  const weekStartIso = isoDate(weekStart);
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 4);
+
+  function shiftWeek(delta) {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + delta * 7);
+    setWeekStart(d);
+  }
+
+  function findSession(room, dayIdx, slotIdx) {
+    const date = isoDate(dateForDayIndex(weekStart, dayIdx));
+    return sessions.find(
+      (s) => s.date === date && s.room === room && s.slot === SLOTS[slotIdx]
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-end justify-between flex-wrap gap-4">
+        <div>
+          <div className="text-xs uppercase tracking-[0.2em] mb-2" style={{ color: C.accent }}>
+            Planning de la semaine
+          </div>
+          <h1 className="font-display text-3xl" style={{ color: C.ink }}>
+            Du {fmtDateShort(weekStart)} au {fmtDateShort(weekEnd)}
+          </h1>
+          <p className="text-xs mt-1" style={{ color: C.inkMuted }}>
+            Cliquez une cellule pour saisir une séance · Les cellules colorées sont déjà saisies
+          </p>
+        </div>
+        <div className="flex items-center gap-1">
+          <button onClick={() => shiftWeek(-1)}
+            className="p-2 hover:opacity-70" style={{ background: C.paper, border: `1px solid ${C.rule}` }}>
+            <ChevronLeft size={16} style={{ color: C.ink }} />
+          </button>
+          <button onClick={() => setWeekStart(getMondayOf(new Date()))}
+            className="px-3 py-2 text-xs hover:opacity-70"
+            style={{ background: C.paper, border: `1px solid ${C.rule}`, color: C.ink }}>
+            Aujourd'hui
+          </button>
+          <button onClick={() => shiftWeek(1)}
+            className="p-2 hover:opacity-70" style={{ background: C.paper, border: `1px solid ${C.rule}` }}>
+            <ChevronRight size={16} style={{ color: C.ink }} />
+          </button>
+        </div>
+      </div>
+
+      {ROOMS.map((room) => (
+        <div key={room} style={{ background: C.paper, border: `1px solid ${C.rule}` }}>
+          <div className="px-5 py-3 flex items-center justify-between"
+            style={{ borderBottom: `1px solid ${C.ruleSoft}`, background: C.bg }}>
+            <div className="font-display text-lg" style={{ color: C.ink }}>{room}</div>
+            <div className="text-xs" style={{ color: C.inkMuted }}>
+              Groupes : {ROOM_GROUPS[room].map(groupsLabel).join(" · ")}
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr style={{ background: C.bg }}>
+                  <th className="text-left px-4 py-2 text-xs uppercase tracking-wider font-medium"
+                    style={{ color: C.inkMuted, width: 130 }}>Créneau</th>
+                  {DAYS.map((d, i) => (
+                    <th key={d} className="text-left px-4 py-2 text-xs uppercase tracking-wider font-medium"
+                      style={{ color: C.inkMuted }}>
+                      {d}
+                      <div className="text-[10px] font-normal normal-case" style={{ color: C.inkMuted }}>
+                        {fmtDateShort(dateForDayIndex(weekStart, i))}
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {SLOTS.map((slot, slotIdx) => (
+                  <tr key={slot} style={{ borderTop: `1px solid ${C.ruleSoft}` }}>
+                    <td className="px-4 py-3 text-xs num" style={{ color: C.inkSoft }}>{slot}</td>
+                    {DAYS.map((d, dayIdx) => {
+                      const groups = getGroupForSlot(room, dayIdx, slotIdx);
+                      const existing = findSession(room, dayIdx, slotIdx);
+                      const date = dateForDayIndex(weekStart, dayIdx);
+                      return (
+                        <td key={d} className="px-2 py-2 align-top">
+                          <button
+                            onClick={() => existing
+                              ? onOpenSession(existing.id)
+                              : onStartSession({
+                                  date: isoDate(date), day: d, slot,
+                                  room, groups,
+                                })
+                            }
+                            className="w-full text-left px-3 py-2 transition hover:opacity-90"
+                            style={{
+                              background: existing ? C.accentSoft : C.bg,
+                              border: `1px solid ${existing ? C.accent : C.rule}`,
+                              color: C.ink,
+                            }}>
+                            <div className="font-medium text-sm">{groupsLabel(groups)}</div>
+                            <div className="text-[10px] mt-1" style={{ color: existing ? C.accentDark : C.inkMuted }}>
+                              {existing
+                                ? `✓ ${Object.values(existing.attendance).filter((r) => r.present).length} présents`
+                                : "À saisir"}
+                            </div>
+                          </button>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ============================================================
+   COMPONENT — Session editor
+   ============================================================ */
+/* ============================================================
+   COMPONENT — SaveStatusBadge
+   ============================================================ */
+function SaveStatusBadge({ status }) {
+  const map = {
+    idle:   { bg: C.bg,         border: C.rule,    color: C.inkMuted, label: "—" },
+    dirty:  { bg: C.warnSoft,   border: C.warn,    color: C.ink,      label: "Modifications en attente…" },
+    saving: { bg: C.accentSoft, border: C.accent,  color: C.accentDark, label: "Enregistrement…" },
+    saved:  { bg: C.presentSoft,border: C.present, color: C.present,  label: "Enregistré automatiquement ✓" },
+    error:  { bg: C.absentSoft, border: C.absent,  color: C.absent,   label: "Échec — réessayez" },
+  };
+  const m = map[status] || map.idle;
+  if (status === "idle") return null;
+  return (
+    <div className="px-3 py-2 text-xs flex items-center gap-1.5"
+      style={{ background: m.bg, border: `1px solid ${m.border}`, color: m.color }}>
+      {m.label}
+    </div>
+  );
+}
+
+function SessionEditor({ session, onSave, onDelete, onClose, teacher }) {
+  const { students } = useStudents();
+  const [working, setWorking] = useState(() => structuredClone(session));
+  const [filter, setFilter] = useState("all"); // all | present | absent | unmarked
+  const [search, setSearch] = useState("");
+  const [saveStatus, setSaveStatus] = useState("idle"); // idle | dirty | saving | saved | error
+  const isNew = !session.createdAt;
+
+  // Refs to coordinate auto-save without re-running the effect for every change.
+  const userTouched = useRef(false);
+  const saveTimer = useRef(null);
+  const latestWorking = useRef(working);
+  const inFlight = useRef(false);
+
+  // Keep latestWorking in sync without resetting timers
+  useEffect(() => { latestWorking.current = working; }, [working]);
+
+  // Sync attendance keys with current student roster (handles students added/removed since session creation)
+  useEffect(() => {
+    setWorking((w) => {
+      const att = { ...w.attendance };
+      let changed = false;
+      w.groups.forEach((g) => {
+        (students[g] || []).forEach((s) => {
+          if (!att[s.id]) {
+            att[s.id] = { present: false, grade: null, comment: "" };
+            changed = true;
+          }
+        });
+      });
+      return changed ? { ...w, attendance: att } : w;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [students]);
+
+  // Core save routine — used by both auto-save and the explicit button.
+  async function doSave() {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    setSaveStatus("saving");
+    const w = latestWorking.current;
+    const now = Date.now();
+    const toSave = {
+      ...w,
+      teacher: w.teacher || teacher,
+      createdAt: w.createdAt || now,
+      updatedAt: now,
+    };
+    try {
+      await onSave(toSave);
+      // Reflect persisted timestamps in the local working copy so isNew flips to false.
+      setWorking((cur) => ({ ...cur, createdAt: toSave.createdAt, updatedAt: toSave.updatedAt }));
+      setSaveStatus("saved");
+    } catch (e) {
+      setSaveStatus("error");
+    } finally {
+      inFlight.current = false;
+    }
+  }
+
+  // Debounced auto-save — fires 700ms after the last user-driven change.
+  useEffect(() => {
+    if (!userTouched.current) return;
+    setSaveStatus("dirty");
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => { doSave(); }, 700);
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [working]);
+
+  // Stable ref to the latest flush function — used by unmount cleanup so a
+  // teacher who navigates away mid-edit (logout, tab change, browser close)
+  // doesn't lose their work.
+  const flushRef = useRef(null);
+  flushRef.current = async () => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    if (userTouched.current && !inFlight.current) await doSave();
+  };
+
+  // Flush on unmount (handles logout, tab change, etc.)
+  useEffect(() => () => { flushRef.current && flushRef.current(); }, []);
+
+  // Flush on tab hide or page close (extra safety for mobile/desktop closing)
+  useEffect(() => {
+    function onHide() {
+      if (document.visibilityState === "hidden" && userTouched.current) {
+        if (saveTimer.current) clearTimeout(saveTimer.current);
+        if (!inFlight.current) doSave();
+      }
+    }
+    function onBeforeUnload() {
+      if (userTouched.current && !inFlight.current) doSave();
+    }
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("beforeunload", onBeforeUnload);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Wrap close to flush any pending save first.
+  async function safeClose() {
+    if (flushRef.current) await flushRef.current();
+    onClose();
+  }
+
+  const allStudents = useMemo(() => {
+    const arr = [];
+    working.groups.forEach((g) => {
+      (students[g] || []).forEach((s) => {
+        const rec = working.attendance[s.id] || { present: false, grade: null, comment: "" };
+        arr.push({ id: s.id, name: s.name, group: g, ...rec });
+      });
+    });
+    return arr;
+  }, [working]);
+
+  const filtered = useMemo(() => {
+    return allStudents.filter((s) => {
+      if (search.trim() && !s.name.toLowerCase().includes(search.trim().toLowerCase())) return false;
+      if (filter === "present") return s.present;
+      if (filter === "absent") return !s.present;
+      if (filter === "unmarked") return s.grade == null;
+      return true;
+    });
+  }, [allStudents, filter, search]);
+
+  function update(id, patch) {
+    userTouched.current = true;
+    setWorking((w) => ({
+      ...w,
+      attendance: { ...w.attendance, [id]: { ...w.attendance[id], ...patch } },
+    }));
+  }
+
+  function setAllPresent(val) {
+    userTouched.current = true;
+    setWorking((w) => {
+      const att = { ...w.attendance };
+      Object.keys(att).forEach((id) => { att[id] = { ...att[id], present: val }; });
+      return { ...w, attendance: att };
+    });
+  }
+
+  async function handleSaveClick() {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    userTouched.current = true;
+    await doSave();
+  }
+
+  const presentCount = allStudents.filter((s) => s.present).length;
+  const gradeCount = allStudents.filter((s) => s.grade != null && s.grade !== "").length;
+  const grades = allStudents.filter((s) => s.grade != null && s.grade !== "").map((s) => Number(s.grade));
+  const avgGrade = grades.length ? grades.reduce((a, b) => a + b, 0) / grades.length : null;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <button onClick={safeClose}
+          className="text-xs uppercase tracking-wider hover:underline mb-3" style={{ color: C.accent }}>
+          ← Retour
+        </button>
+        <div className="flex items-end justify-between flex-wrap gap-4">
+          <div>
+            <div className="text-xs uppercase tracking-[0.2em] mb-2" style={{ color: C.accent }}>
+              {isNew && saveStatus === "idle" ? "Nouvelle séance" : "Édition de séance"}
+            </div>
+            <h1 className="font-display text-3xl" style={{ color: C.ink }}>
+              {groupsLabel(working.groups)} · {working.room}
+            </h1>
+            <div className="text-sm mt-1" style={{ color: C.inkSoft }}>
+              {fmtDate(new Date(working.date))} · {working.slot} · enseignant : {working.teacher || teacher}
+            </div>
+          </div>
+          <div className="flex gap-2 items-center">
+            <SaveStatusBadge status={saveStatus} />
+            {!isNew && (
+              <button onClick={onDelete}
+                className="flex items-center gap-2 px-3 py-2 text-sm hover:opacity-80"
+                style={{ background: C.paper, border: `1px solid ${C.absent}`, color: C.absent }}>
+                <Trash2 size={14} /> Supprimer
+              </button>
+            )}
+            <button onClick={handleSaveClick}
+              disabled={saveStatus === "saving"}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium hover:opacity-90"
+              style={{
+                background: C.paper,
+                border: `1px solid ${C.ink}`,
+                color: C.ink,
+              }}>
+              <Save size={14} /> Forcer l'enregistrement
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Stat label="Effectif" value={allStudents.length} sub={groupsLabel(working.groups)} />
+        <Stat label="Présents" value={presentCount}
+          sub={`${((presentCount / allStudents.length) * 100).toFixed(0)}% de l'effectif`} />
+        <Stat label="Notes saisies" value={`${gradeCount}/${allStudents.length}`}
+          sub={gradeCount === allStudents.length ? "Complet" : "À compléter"} />
+        <Stat label="Moyenne séance" value={avgGrade != null ? avgGrade.toFixed(2) : "—"}
+          sub="sur 20" />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 p-3"
+        style={{ background: C.paper, border: `1px solid ${C.rule}` }}>
+        <button onClick={() => setAllPresent(true)}
+          className="px-3 py-1.5 text-xs hover:opacity-80"
+          style={{ background: C.presentSoft, color: C.present, border: `1px solid ${C.present}` }}>
+          ✓ Tous présents
+        </button>
+        <button onClick={() => setAllPresent(false)}
+          className="px-3 py-1.5 text-xs hover:opacity-80"
+          style={{ background: C.absentSoft, color: C.absent, border: `1px solid ${C.absent}` }}>
+          ✗ Tous absents
+        </button>
+        <div className="h-6 w-px mx-1" style={{ background: C.rule }} />
+        <Filter size={14} style={{ color: C.inkMuted }} />
+        {[
+          { id: "all", label: "Tous" },
+          { id: "present", label: "Présents" },
+          { id: "absent", label: "Absents" },
+          { id: "unmarked", label: "Sans note" },
+        ].map((f) => (
+          <button key={f.id} onClick={() => setFilter(f.id)}
+            className="px-3 py-1.5 text-xs"
+            style={{
+              background: filter === f.id ? C.ink : "transparent",
+              color: filter === f.id ? C.bg : C.inkSoft,
+              border: `1px solid ${filter === f.id ? C.ink : C.rule}`,
+            }}>
+            {f.label}
+          </button>
+        ))}
+        <input value={search} onChange={(e) => setSearch(e.target.value)}
+          placeholder="Filtrer un nom…"
+          className="ml-auto px-3 py-1.5 text-xs outline-none"
+          style={{ background: C.bg, border: `1px solid ${C.rule}`, color: C.ink, minWidth: 180 }} />
+      </div>
+
+      <div style={{ background: C.paper, border: `1px solid ${C.rule}` }}>
+        <table className="w-full text-sm">
+          <thead>
+            <tr style={{ background: C.bg, borderBottom: `1px solid ${C.rule}` }}>
+              <th className="text-left px-4 py-3 text-xs uppercase tracking-wider font-medium"
+                style={{ color: C.inkMuted, width: 60 }}>N°</th>
+              <th className="text-left px-4 py-3 text-xs uppercase tracking-wider font-medium"
+                style={{ color: C.inkMuted }}>Étudiant</th>
+              <th className="text-center px-4 py-3 text-xs uppercase tracking-wider font-medium"
+                style={{ color: C.inkMuted, width: 180 }}>Présence</th>
+              <th className="text-center px-4 py-3 text-xs uppercase tracking-wider font-medium"
+                style={{ color: C.inkMuted, width: 130 }}>Note /20</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((s, i) => (
+              <tr key={s.id} style={{ borderTop: i > 0 ? `1px solid ${C.ruleSoft}` : "none" }}>
+                <td className="px-4 py-3 text-xs num" style={{ color: C.inkMuted }}>{s.id}</td>
+                <td className="px-4 py-3" style={{ color: C.ink }}>
+                  <div className="font-medium">{s.name}</div>
+                  {working.groups.length > 1 && (
+                    <div className="text-[10px]" style={{ color: C.inkMuted }}>Groupe {s.group}</div>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-center">
+                  <div className="inline-flex">
+                    <button
+                      onClick={() => update(s.id, { present: true })}
+                      className="px-3 py-1.5 text-xs flex items-center gap-1"
+                      style={{
+                        background: s.present ? C.present : "transparent",
+                        color: s.present ? "white" : C.inkSoft,
+                        border: `1px solid ${s.present ? C.present : C.rule}`,
+                      }}>
+                      <Check size={12} /> Présent
+                    </button>
+                    <button
+                      onClick={() => update(s.id, { present: false })}
+                      className="px-3 py-1.5 text-xs flex items-center gap-1 -ml-px"
+                      style={{
+                        background: !s.present ? C.absent : "transparent",
+                        color: !s.present ? "white" : C.inkSoft,
+                        border: `1px solid ${!s.present ? C.absent : C.rule}`,
+                      }}>
+                      <XIcon size={12} /> Absent
+                    </button>
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-center">
+                  <input
+                    type="number" min="0" max="20" step="0.25"
+                    value={s.grade ?? ""}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      update(s.id, { grade: v === "" ? null : Number(v) });
+                    }}
+                    disabled={!s.present}
+                    placeholder="—"
+                    className="w-20 px-2 py-1.5 text-center text-sm num outline-none"
+                    style={{
+                      background: s.present ? C.bg : C.ruleSoft,
+                      border: `1px solid ${C.rule}`,
+                      color: s.present ? C.ink : C.inkMuted,
+                    }} />
+                </td>
+              </tr>
+            ))}
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={4} className="text-center py-8 text-sm" style={{ color: C.inkMuted }}>
+                  Aucun étudiant ne correspond à ces filtres.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   COMPONENT — Sessions list
+   ============================================================ */
+function SessionsList({ sessions, onOpenSession }) {
+  const [filter, setFilter] = useState("");
+  const sorted = useMemo(
+    () => [...sessions].sort((a, b) => (b.date + b.slot).localeCompare(a.date + a.slot)),
+    [sessions]
+  );
+  const filtered = sorted.filter((s) => {
+    if (!filter) return true;
+    const f = filter.toLowerCase();
+    return s.room.toLowerCase().includes(f) ||
+      groupsLabel(s.groups).toLowerCase().includes(f) ||
+      (s.teacher || "").toLowerCase().includes(f) ||
+      s.date.includes(f);
+  });
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <div className="text-xs uppercase tracking-[0.2em] mb-2" style={{ color: C.accent }}>
+          Historique
+        </div>
+        <h1 className="font-display text-3xl" style={{ color: C.ink }}>
+          Toutes les séances <span className="num text-2xl" style={{ color: C.inkMuted }}>· {sessions.length}</span>
+        </h1>
+      </div>
+
+      <input value={filter} onChange={(e) => setFilter(e.target.value)}
+        placeholder="Filtrer par groupe, salle, date, enseignant…"
+        className="w-full px-4 py-3 text-sm outline-none"
+        style={{ background: C.paper, border: `1px solid ${C.rule}`, color: C.ink }} />
+
+      <div style={{ background: C.paper, border: `1px solid ${C.rule}` }}>
+        {filtered.length === 0 ? (
+          <div className="text-center py-12 text-sm" style={{ color: C.inkMuted }}>
+            {sessions.length === 0
+              ? "Aucune séance enregistrée pour le moment."
+              : "Aucune séance ne correspond au filtre."}
+          </div>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr style={{ background: C.bg, borderBottom: `1px solid ${C.rule}` }}>
+                <th className="text-left px-4 py-3 text-xs uppercase tracking-wider font-medium"
+                  style={{ color: C.inkMuted }}>Date</th>
+                <th className="text-left px-4 py-3 text-xs uppercase tracking-wider font-medium"
+                  style={{ color: C.inkMuted }}>Créneau</th>
+                <th className="text-left px-4 py-3 text-xs uppercase tracking-wider font-medium"
+                  style={{ color: C.inkMuted }}>Salle / Groupe</th>
+                <th className="text-left px-4 py-3 text-xs uppercase tracking-wider font-medium"
+                  style={{ color: C.inkMuted }}>Enseignant</th>
+                <th className="text-right px-4 py-3 text-xs uppercase tracking-wider font-medium"
+                  style={{ color: C.inkMuted }}>Présents</th>
+                <th className="text-right px-4 py-3 text-xs uppercase tracking-wider font-medium"
+                  style={{ color: C.inkMuted }}>Moyenne</th>
+                <th style={{ width: 30 }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((s, i) => {
+                const recs = Object.values(s.attendance);
+                const present = recs.filter((r) => r.present).length;
+                const grades = recs.filter((r) => r.grade != null && !isNaN(r.grade)).map((r) => Number(r.grade));
+                const avg = grades.length ? grades.reduce((a, b) => a + b, 0) / grades.length : null;
+                return (
+                  <tr key={s.id} style={{ borderTop: i > 0 ? `1px solid ${C.ruleSoft}` : "none" }}
+                    className="cursor-pointer hover:bg-black/[0.02]"
+                    onClick={() => onOpenSession(s.id)}>
+                    <td className="px-4 py-3 num" style={{ color: C.ink }}>
+                      {fmtDateShort(new Date(s.date))}
+                    </td>
+                    <td className="px-4 py-3 text-xs" style={{ color: C.inkSoft }}>{s.slot}</td>
+                    <td className="px-4 py-3" style={{ color: C.ink }}>
+                      <div className="font-medium">{groupsLabel(s.groups)}</div>
+                      <div className="text-xs" style={{ color: C.inkMuted }}>{s.room}</div>
+                    </td>
+                    <td className="px-4 py-3 text-sm" style={{ color: C.inkSoft }}>{s.teacher || "—"}</td>
+                    <td className="px-4 py-3 text-right num" style={{ color: C.ink }}>
+                      {present}/{recs.length}
+                    </td>
+                    <td className="px-4 py-3 text-right num font-medium" style={{ color: C.ink }}>
+                      {avg != null ? avg.toFixed(2) : "—"}
+                    </td>
+                    <td className="px-2"><ChevronRight size={14} style={{ color: C.inkMuted }} /></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   COMPONENT — Groups view
+   ============================================================ */
+function GroupsView({ sessions }) {
+  const { students, addStudents, updateStudent, removeStudent, addGroup, removeGroup } = useStudents();
+  const groupList = listGroups(students);
+  const totalStudents = countTotal(students);
+  const [openGroup, setOpenGroup] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [showNewGroup, setShowNewGroup] = useState(false);
+
+  // compute per-group stats
+  const stats = useMemo(() => {
+    const out = {};
+    groupList.forEach((g) => {
+      out[g] = { sessions: 0, recordsPresent: 0, recordsTotal: 0, grades: [] };
+      (students[g] || []).forEach((s) => {
+        out[g][s.id] = { presents: 0, absents: 0, grades: [] };
+      });
+    });
+    sessions.forEach((s) => {
+      s.groups.forEach((g) => {
+        if (!out[g]) return;
+        out[g].sessions += 1;
+        (students[g] || []).forEach((stu) => {
+          const rec = s.attendance[stu.id];
+          if (!rec) return;
+          out[g].recordsTotal += 1;
+          if (rec.present) {
+            out[g].recordsPresent += 1;
+            out[g][stu.id].presents += 1;
+            if (rec.grade != null && !isNaN(rec.grade)) {
+              out[g].grades.push(Number(rec.grade));
+              out[g][stu.id].grades.push(Number(rec.grade));
+            }
+          } else {
+            out[g][stu.id].absents += 1;
+          }
+        });
+      });
+    });
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessions, students]);
+
+  function sessionsUsing(groupId) {
+    return sessions.filter((s) => s.groups.includes(Number(groupId))).length;
+  }
+
+  if (openGroup != null) {
+    const g = openGroup;
+    const gs = stats[g] || { sessions: 0, recordsPresent: 0, recordsTotal: 0, grades: [] };
+    const groupStudents = students[g] || [];
+    const sessionsCount = sessionsUsing(g);
+
+    return (
+      <div className="space-y-6">
+        <button onClick={() => { setOpenGroup(null); setEditing(false); }}
+          className="text-xs uppercase tracking-wider hover:underline" style={{ color: C.accent }}>
+          ← Retour aux groupes
+        </button>
+        <div className="flex items-end justify-between flex-wrap gap-4">
+          <div>
+            <div className="text-xs uppercase tracking-[0.2em] mb-2" style={{ color: C.accent }}>
+              {editing ? "Modification du groupe" : "Détail du groupe"}
+            </div>
+            <h1 className="font-display text-3xl" style={{ color: C.ink }}>
+              Groupe {g} <span className="num text-2xl" style={{ color: C.inkMuted }}>· {groupStudents.length} étudiant{groupStudents.length > 1 ? "s" : ""}</span>
+            </h1>
+          </div>
+          <div className="flex gap-2">
+            {!editing ? (
+              <>
+                <button onClick={() => setEditing(true)}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium hover:opacity-80"
+                  style={{ background: C.paper, border: `1px solid ${C.ink}`, color: C.ink }}>
+                  ✎ Modifier la liste
+                </button>
+                {sessionsCount === 0 && (
+                  <button onClick={() => {
+                    if (window.confirm(`Supprimer définitivement le Groupe ${g} et ses ${groupStudents.length} étudiant(s) ?`)) {
+                      removeGroup(g);
+                      setOpenGroup(null);
+                    }
+                  }}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium hover:opacity-80"
+                    style={{ background: C.paper, border: `1px solid ${C.absent}`, color: C.absent }}>
+                    <Trash2 size={14} /> Supprimer le groupe
+                  </button>
+                )}
+              </>
+            ) : (
+              <button onClick={() => setEditing(false)}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+                style={{ background: C.present }}>
+                ✓ Terminer
+              </button>
+            )}
+          </div>
+        </div>
+
+        {editing ? (
+          <GroupEditor
+            groupId={g}
+            students={groupStudents}
+            onAdd={(names) => addStudents(g, names)}
+            onUpdate={(id, name) => updateStudent(g, id, name)}
+            onRemove={(id) => {
+              const used = sessions.some((s) => s.attendance[id]);
+              const msg = used
+                ? `Cet étudiant apparaît dans des séances déjà saisies. Le supprimer rendra ces enregistrements orphelins (mais conservés). Continuer ?`
+                : `Supprimer définitivement cet étudiant ?`;
+              if (window.confirm(msg)) removeStudent(g, id);
+            }}
+          />
+        ) : (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <Stat label="Séances" value={gs.sessions} sub="enregistrées" />
+              <Stat label="Présence moyenne"
+                value={gs.recordsTotal ? ((gs.recordsPresent / gs.recordsTotal) * 100).toFixed(1) + "%" : "—"}
+                sub={`${gs.recordsPresent}/${gs.recordsTotal}`} />
+              <Stat label="Moyenne du groupe"
+                value={gs.grades.length ? (gs.grades.reduce((a, b) => a + b, 0) / gs.grades.length).toFixed(2) : "—"}
+                sub={`${gs.grades.length} notes`} />
+              <Stat label="Notes saisies" value={gs.grades.length} sub="au total" />
+            </div>
+
+            <div style={{ background: C.paper, border: `1px solid ${C.rule}` }}>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr style={{ background: C.bg, borderBottom: `1px solid ${C.rule}` }}>
+                    <th className="text-left px-4 py-3 text-xs uppercase tracking-wider font-medium" style={{ color: C.inkMuted, width: 60 }}>N°</th>
+                    <th className="text-left px-4 py-3 text-xs uppercase tracking-wider font-medium" style={{ color: C.inkMuted }}>Étudiant</th>
+                    <th className="text-right px-4 py-3 text-xs uppercase tracking-wider font-medium" style={{ color: C.inkMuted }}>Présences</th>
+                    <th className="text-right px-4 py-3 text-xs uppercase tracking-wider font-medium" style={{ color: C.inkMuted }}>Absences</th>
+                    <th className="text-right px-4 py-3 text-xs uppercase tracking-wider font-medium" style={{ color: C.inkMuted }}>Moyenne /20</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {groupStudents.map((stu, i) => {
+                    const sStats = gs[stu.id] || { presents: 0, absents: 0, grades: [] };
+                    const avg = sStats.grades.length ? (sStats.grades.reduce((a, b) => a + b, 0) / sStats.grades.length) : null;
+                    return (
+                      <tr key={stu.id} style={{ borderTop: i > 0 ? `1px solid ${C.ruleSoft}` : "none" }}>
+                        <td className="px-4 py-2 text-xs num" style={{ color: C.inkMuted }}>{i + 1}</td>
+                        <td className="px-4 py-2 font-medium" style={{ color: C.ink }}>{stu.name}</td>
+                        <td className="px-4 py-2 text-right num" style={{ color: C.present }}>{sStats.presents}</td>
+                        <td className="px-4 py-2 text-right num" style={{ color: C.absent }}>{sStats.absents}</td>
+                        <td className="px-4 py-2 text-right num font-medium" style={{ color: C.ink }}>
+                          {avg != null ? avg.toFixed(2) : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {groupStudents.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="text-center py-8 text-sm" style={{ color: C.inkMuted }}>
+                        Aucun étudiant. Cliquez « Modifier la liste » pour en ajouter.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-end justify-between flex-wrap gap-4">
+        <div>
+          <div className="text-xs uppercase tracking-[0.2em] mb-2" style={{ color: C.accent }}>
+            Liste des groupes
+          </div>
+          <h1 className="font-display text-3xl" style={{ color: C.ink }}>
+            {groupList.length} groupes · {totalStudents} étudiants
+          </h1>
+        </div>
+        <button onClick={() => setShowNewGroup(true)}
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+          style={{ background: C.accent }}>
+          <Plus size={14} /> Nouveau groupe
+        </button>
+      </div>
+
+      <DuplicatesPanel onJump={(g) => setOpenGroup(g)} />
+
+      <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        {groupList.map((g) => {
+          const gs = stats[g];
+          const avg = gs.grades.length ? (gs.grades.reduce((a, b) => a + b, 0) / gs.grades.length) : null;
+          const presence = gs.recordsTotal ? (gs.recordsPresent / gs.recordsTotal) * 100 : null;
+          return (
+            <button key={g} onClick={() => setOpenGroup(g)}
+              className="text-left p-5 hover:opacity-90 transition"
+              style={{ background: C.paper, border: `1px solid ${C.rule}` }}>
+              <div className="flex items-baseline justify-between mb-3">
+                <div className="font-display text-2xl" style={{ color: C.ink }}>Groupe {g}</div>
+                <div className="text-xs num" style={{ color: C.inkMuted }}>{(students[g] || []).length} étud.</div>
+              </div>
+              <div className="space-y-1 text-xs">
+                <div className="flex justify-between" style={{ color: C.inkSoft }}>
+                  <span>Séances</span>
+                  <span className="num font-medium">{gs.sessions}</span>
+                </div>
+                <div className="flex justify-between" style={{ color: C.inkSoft }}>
+                  <span>Présence</span>
+                  <span className="num font-medium">{presence != null ? presence.toFixed(0) + "%" : "—"}</span>
+                </div>
+                <div className="flex justify-between" style={{ color: C.inkSoft }}>
+                  <span>Moyenne</span>
+                  <span className="num font-medium">{avg != null ? avg.toFixed(2) : "—"}</span>
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {showNewGroup && (
+        <NewGroupModal
+          suggestedId={nextGroupId(students)}
+          existingIds={groupList}
+          students={students}
+          onClose={() => setShowNewGroup(false)}
+          onCreate={async (id, names) => {
+            await addGroup(id, names);
+            setShowNewGroup(false);
+            setOpenGroup(id);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   COMPONENT — GroupEditor (in-place edit of student list)
+   ============================================================ */
+function GroupEditor({ groupId, students, onAdd, onUpdate, onRemove }) {
+  const [single, setSingle] = useState("");
+  const [bulk, setBulk] = useState("");
+  const [showBulk, setShowBulk] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editingValue, setEditingValue] = useState("");
+  const [feedback, setFeedback] = useState(null); // { kind: 'success'|'error'|'partial', text }
+  const [editError, setEditError] = useState(null);
+
+  function showFeedback(kind, text, ms = 4500) {
+    setFeedback({ kind, text });
+    setTimeout(() => setFeedback(null), ms);
+  }
+
+  function describeRejected(rejected) {
+    return rejected
+      .map((r) => `« ${r.name} » (déjà dans Groupe ${r.conflictsWith.group} sous « ${r.conflictsWith.name} »)`)
+      .join(" · ");
+  }
+
+  async function addOne() {
+    const v = single.trim();
+    if (!v) return;
+    const res = await onAdd([v]);
+    if (res.added.length === 1) {
+      setSingle("");
+      showFeedback("success", `« ${v} » ajouté.`);
+    } else if (res.rejected.length) {
+      const r = res.rejected[0];
+      showFeedback("error",
+        `Impossible d'ajouter « ${r.name} » : déjà inscrit dans le Groupe ${r.conflictsWith.group} sous « ${r.conflictsWith.name} ».`);
+    }
+  }
+
+  async function addBulk() {
+    const names = bulk.split("\n").map((s) => s.trim()).filter(Boolean);
+    if (names.length === 0) return;
+    const res = await onAdd(names);
+    if (res.added.length && !res.rejected.length) {
+      showFeedback("success", `${res.added.length} étudiant(s) ajouté(s).`);
+      setBulk("");
+      setShowBulk(false);
+    } else if (res.added.length && res.rejected.length) {
+      showFeedback("partial",
+        `${res.added.length} ajouté(s), ${res.rejected.length} rejeté(s) : ${describeRejected(res.rejected)}`,
+        9000);
+      // Keep rejected lines in the textarea so user can see/correct
+      setBulk(res.rejected.map((r) => r.name).join("\n"));
+    } else if (res.rejected.length) {
+      showFeedback("error",
+        `Aucun ajouté. Doublon(s) : ${describeRejected(res.rejected)}`,
+        9000);
+    }
+  }
+
+  function startEdit(s) {
+    setEditingId(s.id);
+    setEditingValue(s.name);
+    setEditError(null);
+  }
+  async function commitEdit() {
+    const v = editingValue.trim();
+    if (!v) { setEditingId(null); setEditError(null); return; }
+    const res = await onUpdate(editingId, v);
+    if (res.ok) {
+      setEditingId(null);
+      setEditingValue("");
+      setEditError(null);
+    } else if (res.conflict) {
+      setEditError(`Ce nom existe déjà dans le Groupe ${res.conflict.group} (« ${res.conflict.name} »).`);
+    } else {
+      setEditError("Nom invalide.");
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="p-4" style={{ background: C.warnSoft, border: `1px solid ${C.warn}`, color: C.ink }}>
+        <div className="text-xs flex items-start gap-2">
+          <AlertCircle size={14} style={{ color: C.warn, marginTop: 2 }} />
+          <div>
+            Mode modification actif. Les changements sont enregistrés instantanément et partagés avec tous les enseignants.
+            Un même étudiant ne peut pas être inscrit dans deux groupes — les doublons sont détectés et bloqués automatiquement (les variations d'accents, tirets et apostrophes sont prises en compte).
+            Supprimer un étudiant qui a déjà des notes/présences ne supprime pas ses anciennes données — elles deviennent simplement inaccessibles.
+          </div>
+        </div>
+      </div>
+
+      {feedback && (
+        <div className="p-3 text-xs flex items-start gap-2"
+          style={{
+            background: feedback.kind === "success" ? C.presentSoft
+                       : feedback.kind === "partial" ? C.warnSoft
+                       : C.absentSoft,
+            border: `1px solid ${
+              feedback.kind === "success" ? C.present
+              : feedback.kind === "partial" ? C.warn
+              : C.absent
+            }`,
+            color: C.ink,
+          }}>
+          <span style={{ marginTop: 1 }}>
+            {feedback.kind === "success" ? "✓" : feedback.kind === "partial" ? "⚠" : "✗"}
+          </span>
+          <span>{feedback.text}</span>
+        </div>
+      )}
+
+      <div className="p-5 space-y-3" style={{ background: C.paper, border: `1px solid ${C.rule}` }}>
+        <div className="text-xs uppercase tracking-wider" style={{ color: C.inkMuted }}>
+          Ajouter un étudiant
+        </div>
+        <div className="flex gap-2">
+          <input value={single} onChange={(e) => setSingle(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") addOne(); }}
+            placeholder="NOM Prénoms (ex. KOUASSI JEAN-PIERRE)"
+            className="flex-1 px-4 py-2 text-sm outline-none"
+            style={{ background: C.bg, border: `1px solid ${C.rule}`, color: C.ink }} />
+          <button onClick={addOne}
+            className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+            style={{ background: C.accent }}>
+            <Plus size={14} /> Ajouter
+          </button>
+          <button onClick={() => setShowBulk((v) => !v)}
+            className="px-3 py-2 text-sm hover:opacity-80"
+            style={{ background: C.paper, border: `1px solid ${C.rule}`, color: C.ink }}>
+            {showBulk ? "Annuler" : "Liste en lot…"}
+          </button>
+        </div>
+
+        {showBulk && (
+          <div className="space-y-2 pt-2" style={{ borderTop: `1px solid ${C.ruleSoft}` }}>
+            <div className="text-xs" style={{ color: C.inkMuted }}>
+              Collez une liste — un nom par ligne. Les espaces multiples et lignes vides sont nettoyés automatiquement.
+            </div>
+            <textarea value={bulk} onChange={(e) => setBulk(e.target.value)}
+              placeholder={"DUPONT MARIE\nMARTIN JEAN PAUL\nKONE FATOU AICHA"}
+              rows={6}
+              className="w-full px-3 py-2 text-sm outline-none num"
+              style={{ background: C.bg, border: `1px solid ${C.rule}`, color: C.ink, fontFamily: "ui-monospace, monospace" }} />
+            <div className="flex justify-end">
+              <button onClick={addBulk}
+                className="px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+                style={{ background: C.accent }}>
+                Ajouter {bulk.split("\n").filter((s) => s.trim()).length} étudiant(s)
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div style={{ background: C.paper, border: `1px solid ${C.rule}` }}>
+        <table className="w-full text-sm">
+          <thead>
+            <tr style={{ background: C.bg, borderBottom: `1px solid ${C.rule}` }}>
+              <th className="text-left px-4 py-3 text-xs uppercase tracking-wider font-medium" style={{ color: C.inkMuted, width: 60 }}>N°</th>
+              <th className="text-left px-4 py-3 text-xs uppercase tracking-wider font-medium" style={{ color: C.inkMuted }}>Étudiant</th>
+              <th className="text-left px-4 py-3 text-xs uppercase tracking-wider font-medium" style={{ color: C.inkMuted, width: 90 }}>ID</th>
+              <th style={{ width: 180 }}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {students.map((s, i) => (
+              <tr key={s.id} style={{ borderTop: i > 0 ? `1px solid ${C.ruleSoft}` : "none" }}>
+                <td className="px-4 py-2 text-xs num" style={{ color: C.inkMuted }}>{i + 1}</td>
+                <td className="px-4 py-2" style={{ color: C.ink }}>
+                  {editingId === s.id ? (
+                    <div>
+                      <input value={editingValue} onChange={(e) => setEditingValue(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") { setEditingId(null); setEditingValue(""); setEditError(null); } }}
+                        autoFocus
+                        className="w-full px-2 py-1 text-sm outline-none"
+                        style={{ background: C.bg, border: `1px solid ${editError ? C.absent : C.accent}`, color: C.ink }} />
+                      {editError && (
+                        <div className="text-xs mt-1" style={{ color: C.absent }}>{editError}</div>
+                      )}
+                    </div>
+                  ) : (
+                    <span className="font-medium">{s.name}</span>
+                  )}
+                </td>
+                <td className="px-4 py-2 text-xs num" style={{ color: C.inkMuted }}>{s.id}</td>
+                <td className="px-2 py-2 text-right">
+                  {editingId === s.id ? (
+                    <div className="flex justify-end gap-1">
+                      <button onClick={commitEdit}
+                        className="px-2 py-1 text-xs text-white" style={{ background: C.present }}>OK</button>
+                      <button onClick={() => { setEditingId(null); setEditingValue(""); setEditError(null); }}
+                        className="px-2 py-1 text-xs" style={{ background: C.paper, border: `1px solid ${C.rule}`, color: C.inkSoft }}>×</button>
+                    </div>
+                  ) : (
+                    <div className="flex justify-end gap-1">
+                      <button onClick={() => startEdit(s)}
+                        className="px-2 py-1 text-xs hover:opacity-70"
+                        style={{ background: C.paper, border: `1px solid ${C.rule}`, color: C.inkSoft }}>
+                        ✎
+                      </button>
+                      <button onClick={() => onRemove(s.id)}
+                        className="px-2 py-1 text-xs hover:opacity-70"
+                        style={{ background: C.paper, border: `1px solid ${C.absent}`, color: C.absent }}>
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  )}
+                </td>
+              </tr>
+            ))}
+            {students.length === 0 && (
+              <tr>
+                <td colSpan={4} className="text-center py-8 text-sm" style={{ color: C.inkMuted }}>
+                  Le groupe est vide.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   COMPONENT — NewGroupModal
+   ============================================================ */
+function NewGroupModal({ suggestedId, existingIds, students, onClose, onCreate }) {
+  const [groupId, setGroupId] = useState(String(suggestedId));
+  const [bulk, setBulk] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  const id = parseInt(groupId, 10);
+  const idValid = !isNaN(id) && id > 0 && !existingIds.includes(id);
+  const names = bulk.split("\n").map((s) => s.trim()).filter(Boolean);
+
+  // Pre-validate names against existing students to give immediate feedback
+  const conflicts = useMemo(() => {
+    const out = [];
+    const seenInBatch = new Set();
+    names.forEach((name) => {
+      const key = normalizeName(name);
+      if (seenInBatch.has(key)) {
+        out.push({ name, reason: "doublon dans la liste collée" });
+        return;
+      }
+      seenInBatch.add(key);
+      const conflict = findStudentByName(students, name);
+      if (conflict) out.push({ name, reason: `dans Groupe ${conflict.group} sous « ${conflict.name} »` });
+    });
+    return out;
+  }, [names, students]);
+
+  const validCount = names.length - conflicts.length;
+
+  async function handleCreate() {
+    if (!idValid) return;
+    setCreating(true);
+    await onCreate(id, names);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(27, 42, 65, 0.55)" }}
+      onClick={onClose}>
+      <div className="max-w-lg w-full p-6 space-y-4"
+        style={{ background: C.paper, border: `1px solid ${C.rule}` }}
+        onClick={(e) => e.stopPropagation()}>
+        <div>
+          <div className="text-xs uppercase tracking-[0.2em] mb-1" style={{ color: C.accent }}>
+            Création
+          </div>
+          <h2 className="font-display text-2xl" style={{ color: C.ink }}>Nouveau groupe</h2>
+        </div>
+
+        <div>
+          <label className="text-xs uppercase tracking-wider mb-2 block" style={{ color: C.inkMuted }}>
+            Numéro du groupe
+          </label>
+          <input type="number" min="1" value={groupId}
+            onChange={(e) => setGroupId(e.target.value)}
+            className="w-full px-3 py-2 text-sm outline-none num"
+            style={{ background: C.bg, border: `1px solid ${idValid ? C.rule : C.absent}`, color: C.ink }} />
+          {!idValid && (
+            <div className="text-xs mt-1" style={{ color: C.absent }}>
+              {existingIds.includes(id) ? `Le Groupe ${id} existe déjà.` : "Numéro invalide."}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className="text-xs uppercase tracking-wider mb-2 block" style={{ color: C.inkMuted }}>
+            Étudiants (optionnel — un nom par ligne)
+          </label>
+          <textarea value={bulk} onChange={(e) => setBulk(e.target.value)}
+            rows={8}
+            placeholder={"NOM Prénoms\nNOM Prénoms\n…\n\n(vous pourrez aussi en ajouter après)"}
+            className="w-full px-3 py-2 text-sm outline-none"
+            style={{ background: C.bg, border: `1px solid ${C.rule}`, color: C.ink, fontFamily: "ui-monospace, monospace" }} />
+          <div className="text-xs mt-1 flex items-center justify-between" style={{ color: C.inkMuted }}>
+            <span>{names.length} étudiant{names.length > 1 ? "s" : ""} détecté{names.length > 1 ? "s" : ""}</span>
+            {conflicts.length > 0 && (
+              <span style={{ color: C.warn }}>
+                {conflicts.length} doublon{conflicts.length > 1 ? "s" : ""} sera{conflicts.length > 1 ? "ont" : ""} ignoré{conflicts.length > 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
+          {conflicts.length > 0 && (
+            <div className="mt-2 p-3 text-xs space-y-1"
+              style={{ background: C.warnSoft, border: `1px solid ${C.warn}`, color: C.ink, maxHeight: 140, overflowY: "auto" }}>
+              {conflicts.slice(0, 8).map((c, i) => (
+                <div key={i}>· « {c.name} » — {c.reason}</div>
+              ))}
+              {conflicts.length > 8 && (
+                <div className="italic" style={{ color: C.inkMuted }}>… et {conflicts.length - 8} autre(s)</div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2">
+          <button onClick={onClose}
+            className="px-4 py-2 text-sm hover:opacity-80"
+            style={{ background: C.paper, border: `1px solid ${C.rule}`, color: C.ink }}>
+            Annuler
+          </button>
+          <button onClick={handleCreate}
+            disabled={!idValid || creating}
+            className="px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
+            style={{ background: C.accent }}>
+            Créer le Groupe {idValid ? id : "?"} {names.length > 0 && `(${validCount} étud.)`}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   COMPONENT — DuplicatesPanel
+   ============================================================ */
+function DuplicatesPanel({ onJump }) {
+  const { students, removeStudent } = useStudents();
+  const [open, setOpen] = useState(false);
+  const dups = useMemo(() => findCrossGroupDuplicates(students), [students]);
+
+  if (dups.length === 0) return null;
+
+  return (
+    <div style={{ background: C.warnSoft, border: `1px solid ${C.warn}` }}>
+      <button onClick={() => setOpen((v) => !v)}
+        className="w-full px-5 py-3 text-left flex items-center justify-between hover:opacity-80">
+        <div className="flex items-center gap-3">
+          <AlertCircle size={18} style={{ color: C.warn }} />
+          <div>
+            <div className="text-sm font-medium" style={{ color: C.ink }}>
+              {dups.length} étudiant{dups.length > 1 ? "s" : ""} apparaît dans plusieurs groupes
+            </div>
+            <div className="text-xs" style={{ color: C.inkSoft }}>
+              Détecté dans la liste source — un même étudiant ne devrait être inscrit que dans un seul groupe.
+              Supprimez les inscriptions en double pour rétablir l'unicité.
+            </div>
+          </div>
+        </div>
+        <ChevronRight size={16} style={{ color: C.inkMuted, transform: open ? "rotate(90deg)" : "none", transition: "transform 0.15s" }} />
+      </button>
+
+      {open && (
+        <div style={{ borderTop: `1px solid ${C.warn}`, background: C.paper }}>
+          <div className="divide-y" style={{ borderColor: C.ruleSoft }}>
+            {dups.map((d, i) => (
+              <div key={i} className="px-5 py-3">
+                <div className="text-sm font-medium mb-2" style={{ color: C.ink }}>
+                  {d.occurrences[0].name}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {d.occurrences.map((o) => (
+                    <div key={o.id} className="flex items-center gap-1 px-2 py-1 text-xs"
+                      style={{ background: C.bg, border: `1px solid ${C.rule}` }}>
+                      <button onClick={() => onJump(o.group)}
+                        className="font-medium hover:underline" style={{ color: C.accent }}>
+                        Groupe {o.group}
+                      </button>
+                      <span style={{ color: C.inkMuted }}>· {o.id}</span>
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`Supprimer « ${o.name} » du Groupe ${o.group} ? (les autres inscriptions sont conservées)`)) {
+                            removeStudent(o.group, o.id);
+                          }
+                        }}
+                        className="ml-1 hover:opacity-70"
+                        title="Retirer cette inscription"
+                        style={{ color: C.absent }}>
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                {d.occurrences.length > 1 && d.occurrences.some((o) => o.name !== d.occurrences[0].name) && (
+                  <div className="text-xs italic mt-1" style={{ color: C.inkMuted }}>
+                    Variantes orthographiques détectées : {[...new Set(d.occurrences.map((o) => o.name))].join(" / ")}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   COMPONENT — Search
+   ============================================================ */
+function StudentSearch({ sessions }) {
+  const { students } = useStudents();
+  const [q, setQ] = useState("");
+  const allStudents = useMemo(() => {
+    const arr = [];
+    listGroups(students).forEach((g) => {
+      (students[g] || []).forEach((s, i) => {
+        arr.push({ id: s.id, name: s.name, group: g, num: i + 1 });
+      });
+    });
+    return arr;
+  }, [students]);
+
+  const results = useMemo(() => {
+    if (!q.trim()) return [];
+    const f = q.trim().toLowerCase();
+    return allStudents.filter((s) => s.name.toLowerCase().includes(f)).slice(0, 25);
+  }, [q, allStudents]);
+
+  function statsFor(id) {
+    let p = 0, a = 0;
+    const grades = [];
+    sessions.forEach((s) => {
+      const rec = s.attendance[id];
+      if (!rec) return;
+      if (rec.present) {
+        p++;
+        if (rec.grade != null && !isNaN(rec.grade)) grades.push(Number(rec.grade));
+      } else a++;
+    });
+    return {
+      presents: p, absents: a,
+      avg: grades.length ? grades.reduce((x, y) => x + y, 0) / grades.length : null,
+      gradesCount: grades.length,
+    };
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <div className="text-xs uppercase tracking-[0.2em] mb-2" style={{ color: C.accent }}>
+          Recherche
+        </div>
+        <h1 className="font-display text-3xl" style={{ color: C.ink }}>
+          Rechercher un étudiant
+        </h1>
+      </div>
+
+      <input value={q} onChange={(e) => setQ(e.target.value)}
+        autoFocus
+        placeholder="Tapez un nom ou prénom (ex. KOUASSI, AÏCHA)…"
+        className="w-full px-5 py-4 text-base outline-none"
+        style={{ background: C.paper, border: `1px solid ${C.rule}`, color: C.ink }} />
+
+      {q.trim() && (
+        <div className="text-xs" style={{ color: C.inkMuted }}>
+          {results.length} résultat{results.length > 1 ? "s" : ""}
+          {allStudents.filter((s) => s.name.toLowerCase().includes(q.toLowerCase())).length > 25 && " (limité aux 25 premiers)"}
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {results.map((s) => {
+          const st = statsFor(s.id);
+          return (
+            <div key={s.id} className="p-4 flex items-center justify-between flex-wrap gap-4"
+              style={{ background: C.paper, border: `1px solid ${C.rule}` }}>
+              <div>
+                <div className="font-medium" style={{ color: C.ink }}>{s.name}</div>
+                <div className="text-xs" style={{ color: C.inkMuted }}>
+                  Groupe {s.group} · N°{s.num} · ID {s.id}
+                </div>
+              </div>
+              <div className="flex gap-6 text-sm">
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider" style={{ color: C.inkMuted }}>Présences</div>
+                  <div className="num font-medium" style={{ color: C.present }}>{st.presents}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider" style={{ color: C.inkMuted }}>Absences</div>
+                  <div className="num font-medium" style={{ color: C.absent }}>{st.absents}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase tracking-wider" style={{ color: C.inkMuted }}>Moyenne</div>
+                  <div className="num font-medium" style={{ color: C.ink }}>
+                    {st.avg != null ? st.avg.toFixed(2) : "—"}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {q.trim() && results.length === 0 && (
+          <div className="p-8 text-center text-sm" style={{ background: C.paper, border: `1px solid ${C.rule}`, color: C.inkMuted }}>
+            Aucun étudiant trouvé.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   COMPONENT — Exports
+   ============================================================ */
+function Exports({ sessions, onExportBackup, onRestoreBackup }) {
+  const { students } = useStudents();
+  const groupList = listGroups(students);
+  const [groupChoice, setGroupChoice] = useState("all");
+  const [printSession, setPrintSession] = useState("");
+  const [restoreMsg, setRestoreMsg] = useState(null); // { kind, text }
+  const fileInputRef = useRef(null);
+
+  async function handleRestoreFile(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (!window.confirm(
+      `⚠ Restauration : toutes les données actuelles (étudiants, séances, notes) seront REMPLACÉES par le contenu de « ${file.name} ». Continuer ?`
+    )) {
+      e.target.value = "";
+      return;
+    }
+    try {
+      const text = await file.text();
+      const summary = await onRestoreBackup(text);
+      setRestoreMsg({
+        kind: "success",
+        text: `Restauration réussie : ${summary.groups} groupes · ${summary.students} étudiants · ${summary.sessions} séance(s) · ${summary.teachers} enseignant(s).`,
+      });
+    } catch (err) {
+      setRestoreMsg({ kind: "error", text: `Échec : ${err.message}` });
+    } finally {
+      if (e.target) e.target.value = "";
+      setTimeout(() => setRestoreMsg(null), 8000);
+    }
+  }
+
+  function exportExcel() {
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: Synthèse étudiants (notes & présences agrégées)
+    const groupsToExport = groupChoice === "all" ? groupList : [Number(groupChoice)];
+    const synthRows = [["Groupe", "N°", "Étudiant", "Séances", "Présences", "Absences", "Taux présence (%)", "Notes saisies", "Moyenne /20"]];
+    groupsToExport.forEach((g) => {
+      (students[g] || []).forEach((stu, i) => {
+        const id = stu.id;
+        let p = 0, a = 0; const grades = [];
+        sessions.forEach((s) => {
+          if (!s.groups.includes(g)) return;
+          const r = s.attendance[id];
+          if (!r) return;
+          if (r.present) {
+            p++;
+            if (r.grade != null && !isNaN(r.grade)) grades.push(Number(r.grade));
+          } else a++;
+        });
+        const total = p + a;
+        const avg = grades.length ? grades.reduce((x, y) => x + y, 0) / grades.length : "";
+        synthRows.push([
+          g, i + 1, stu.name, total, p, a,
+          total ? Number(((p / total) * 100).toFixed(1)) : "",
+          grades.length, avg !== "" ? Number(avg.toFixed(2)) : "",
+        ]);
+      });
+    });
+    const sh1 = XLSX.utils.aoa_to_sheet(synthRows);
+    sh1["!cols"] = [{ wch: 8 }, { wch: 6 }, { wch: 42 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 18 }, { wch: 14 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, sh1, "Synthèse");
+
+    // Sheet 2: Toutes les séances détaillées
+    const sessRows = [["Date", "Créneau", "Salle", "Groupe(s)", "Enseignant", "N°", "Étudiant", "Présent", "Note /20"]];
+    [...sessions].sort((a, b) => (a.date + a.slot).localeCompare(b.date + b.slot)).forEach((s) => {
+      s.groups.forEach((g) => {
+        (students[g] || []).forEach((stu, i) => {
+          const id = stu.id;
+          const r = s.attendance[id] || {};
+          sessRows.push([
+            s.date, s.slot, s.room, groupsLabel(s.groups), s.teacher || "",
+            i + 1, stu.name,
+            r.present ? "Oui" : "Non",
+            r.grade != null && !isNaN(r.grade) ? Number(r.grade) : "",
+          ]);
+        });
+      });
+    });
+    const sh2 = XLSX.utils.aoa_to_sheet(sessRows);
+    sh2["!cols"] = [{ wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 18 }, { wch: 5 }, { wch: 42 }, { wch: 9 }, { wch: 10 }];
+    XLSX.utils.book_append_sheet(wb, sh2, "Détail séances");
+
+    // Sheet 3: Tableau croisé notes (étudiants × séances)
+    const sortedSess = [...sessions].sort((a, b) => (a.date + a.slot).localeCompare(b.date + b.slot));
+    const matrixHeaders = ["Groupe", "N°", "Étudiant", ...sortedSess.map((s) => `${fmtDateShort(new Date(s.date))} ${s.slot.split("–")[0]}`)];
+    const matrixRows = [matrixHeaders];
+    groupsToExport.forEach((g) => {
+      (students[g] || []).forEach((stu, i) => {
+        const id = stu.id;
+        const row = [g, i + 1, stu.name];
+        sortedSess.forEach((s) => {
+          if (!s.groups.includes(g)) { row.push(""); return; }
+          const r = s.attendance[id];
+          if (!r) { row.push(""); return; }
+          if (!r.present) { row.push("Abs"); return; }
+          row.push(r.grade != null && !isNaN(r.grade) ? Number(r.grade) : "P");
+        });
+        matrixRows.push(row);
+      });
+    });
+    const sh3 = XLSX.utils.aoa_to_sheet(matrixRows);
+    sh3["!cols"] = [{ wch: 8 }, { wch: 6 }, { wch: 42 }, ...sortedSess.map(() => ({ wch: 10 }))];
+    XLSX.utils.book_append_sheet(wb, sh3, "Notes par séance");
+
+    const stamp = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(wb, `TPLab_export_${stamp}.xlsx`);
+  }
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <div className="text-xs uppercase tracking-[0.2em] mb-2" style={{ color: C.accent }}>
+          Exports & sauvegardes
+        </div>
+        <h1 className="font-display text-3xl" style={{ color: C.ink }}>
+          Sortir et préserver les données
+        </h1>
+        <p className="text-sm mt-2" style={{ color: C.inkSoft }}>
+          Téléchargez vos données au format Excel ou JSON, imprimez les feuilles de présence,
+          et faites des sauvegardes régulières pour ne rien perdre.
+        </p>
+      </div>
+
+      <section className="p-6" style={{ background: C.warnSoft, border: `1px solid ${C.warn}` }}>
+        <div className="flex items-start gap-3">
+          <AlertCircle size={20} style={{ color: C.warn, marginTop: 2 }} />
+          <div className="space-y-2">
+            <h2 className="font-display text-lg" style={{ color: C.ink }}>Sauvegarde recommandée à la fin de chaque journée</h2>
+            <p className="text-xs" style={{ color: C.ink }}>
+              Le stockage de cette application peut être effacé si elle est rechargée dans un contexte différent.
+              Téléchargez régulièrement un fichier JSON de sauvegarde (ci-dessous) — il contient
+              <strong> toutes</strong> vos données et peut être réimporté à tout moment.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid md:grid-cols-2 gap-6">
+        <section className="p-6" style={{ background: C.paper, border: `1px solid ${C.rule}` }}>
+          <div className="flex items-start gap-3 mb-4">
+            <Save size={22} style={{ color: C.accent }} />
+            <div>
+              <h2 className="font-display text-xl" style={{ color: C.ink }}>Sauvegarde complète (JSON)</h2>
+              <p className="text-xs mt-1" style={{ color: C.inkSoft }}>
+                Étudiants · groupes · séances · notes · enseignants — dans un seul fichier réimportable.
+              </p>
+            </div>
+          </div>
+
+          <button onClick={onExportBackup}
+            className="w-full px-4 py-3 text-sm font-medium text-white hover:opacity-90 transition"
+            style={{ background: C.present }}>
+            Télécharger la sauvegarde (.json)
+          </button>
+
+          <div className="mt-4 pt-4" style={{ borderTop: `1px solid ${C.ruleSoft}` }}>
+            <div className="text-xs uppercase tracking-wider mb-2" style={{ color: C.inkMuted }}>
+              Restaurer une sauvegarde
+            </div>
+            <input ref={fileInputRef}
+              type="file" accept=".json,application/json"
+              onChange={handleRestoreFile}
+              className="hidden" />
+            <button onClick={() => fileInputRef.current?.click()}
+              className="w-full px-4 py-3 text-sm font-medium hover:opacity-80 transition"
+              style={{ background: C.paper, border: `1px solid ${C.ink}`, color: C.ink }}>
+              Choisir un fichier .json à restaurer…
+            </button>
+            <p className="text-xs mt-2 italic" style={{ color: C.inkMuted }}>
+              Une restauration remplace toutes les données actuelles.
+            </p>
+            {restoreMsg && (
+              <div className="mt-3 p-3 text-xs"
+                style={{
+                  background: restoreMsg.kind === "success" ? C.presentSoft : C.absentSoft,
+                  border: `1px solid ${restoreMsg.kind === "success" ? C.present : C.absent}`,
+                  color: C.ink,
+                }}>
+                {restoreMsg.kind === "success" ? "✓ " : "✗ "}{restoreMsg.text}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="p-6" style={{ background: C.paper, border: `1px solid ${C.rule}` }}>
+          <div className="flex items-start gap-3 mb-4">
+            <FileSpreadsheet size={22} style={{ color: C.accent }} />
+            <div>
+              <h2 className="font-display text-xl" style={{ color: C.ink }}>Excel multi-feuilles</h2>
+              <p className="text-xs mt-1" style={{ color: C.inkSoft }}>
+                Synthèse · détail séance par séance · tableau croisé notes
+              </p>
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <label className="text-xs uppercase tracking-wider mb-2 block" style={{ color: C.inkMuted }}>
+              Groupe à exporter
+            </label>
+            <select value={groupChoice} onChange={(e) => setGroupChoice(e.target.value)}
+              className="w-full px-3 py-2 text-sm outline-none"
+              style={{ background: C.bg, border: `1px solid ${C.rule}`, color: C.ink }}>
+              <option value="all">Tous les groupes</option>
+              {groupList.map((g) => (
+                <option key={g} value={g}>Groupe {g}</option>
+              ))}
+            </select>
+          </div>
+
+          <button onClick={exportExcel}
+            disabled={sessions.length === 0}
+            className="w-full px-4 py-3 text-sm font-medium text-white hover:opacity-90 transition disabled:opacity-40"
+            style={{ background: C.ink }}>
+            Télécharger le classeur .xlsx
+          </button>
+
+          {sessions.length === 0 && (
+            <div className="mt-3 text-xs flex items-center gap-2" style={{ color: C.warn }}>
+              <AlertCircle size={12} /> Aucune séance enregistrée à exporter.
+            </div>
+          )}
+        </section>
+
+        <section className="p-6" style={{ background: C.paper, border: `1px solid ${C.rule}` }}>
+          <div className="flex items-start gap-3 mb-4">
+            <Printer size={22} style={{ color: C.accent }} />
+            <div>
+              <h2 className="font-display text-xl" style={{ color: C.ink }}>Feuille de présence (PDF)</h2>
+              <p className="text-xs mt-1" style={{ color: C.inkSoft }}>
+                Aperçu imprimable — utilisez « Enregistrer en PDF » dans la fenêtre d'impression.
+              </p>
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <label className="text-xs uppercase tracking-wider mb-2 block" style={{ color: C.inkMuted }}>
+              Séance à imprimer
+            </label>
+            <select value={printSession} onChange={(e) => setPrintSession(e.target.value)}
+              className="w-full px-3 py-2 text-sm outline-none"
+              style={{ background: C.bg, border: `1px solid ${C.rule}`, color: C.ink }}>
+              <option value="">— Choisir une séance —</option>
+              {[...sessions].sort((a, b) => (b.date + b.slot).localeCompare(a.date + a.slot)).map((s) => (
+                <option key={s.id} value={s.id}>
+                  {fmtDateShort(new Date(s.date))} · {s.slot} · {s.room} · {groupsLabel(s.groups)}
+                </option>
+              ))}
+              <option value="__blank__">Feuille vierge (pour appel manuel)</option>
+            </select>
+          </div>
+
+          <button onClick={() => setPrintSession(printSession || "__blank__")}
+            disabled={sessions.length === 0 && printSession !== "__blank__"}
+            className="w-full px-4 py-3 text-sm font-medium hover:opacity-80 transition"
+            style={{ background: C.bg, border: `1px solid ${C.ink}`, color: C.ink }}>
+            Afficher l'aperçu
+          </button>
+        </section>
+      </div>
+
+      {printSession && (
+        <PrintSheet sessionId={printSession} sessions={sessions} onClose={() => setPrintSession("")} />
+      )}
+    </div>
+  );
+}
+
+function PrintSheet({ sessionId, sessions, onClose }) {
+  const { students } = useStudents();
+  const groupList = listGroups(students);
+  const blank = sessionId === "__blank__";
+  const [blankGroup, setBlankGroup] = useState(groupList[0] || 1);
+  const session = blank ? null : sessions.find((s) => s.id === sessionId);
+  const groups = blank ? [Number(blankGroup)] : (session?.groups || []);
+
+  function handlePrint() {
+    window.print();
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-3 no-print">
+        <div className="text-sm" style={{ color: C.inkSoft }}>
+          {blank ? "Mode feuille vierge" : `Aperçu de la séance du ${fmtDateShort(new Date(session.date))}`}
+        </div>
+        <div className="flex gap-2 items-center">
+          {blank && (
+            <select value={blankGroup} onChange={(e) => setBlankGroup(e.target.value)}
+              className="px-3 py-2 text-sm outline-none"
+              style={{ background: C.paper, border: `1px solid ${C.rule}`, color: C.ink }}>
+              {groupList.map((g) => (
+                <option key={g} value={g}>Groupe {g}</option>
+              ))}
+            </select>
+          )}
+          <button onClick={handlePrint}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white"
+            style={{ background: C.accent }}>
+            <Printer size={14} /> Imprimer / Enregistrer en PDF
+          </button>
+          <button onClick={onClose}
+            className="px-3 py-2 text-sm" style={{ background: C.paper, border: `1px solid ${C.rule}`, color: C.ink }}>
+            Fermer
+          </button>
+        </div>
+      </div>
+
+      <div className="print-page p-10" style={{ background: "white", border: `1px solid ${C.rule}` }}>
+        <div className="flex items-start justify-between border-b pb-4 mb-6" style={{ borderColor: "#000" }}>
+          <div>
+            <div className="text-xs uppercase tracking-[0.18em]" style={{ color: "#555" }}>UNA · UFR-SFA · 2025-2026</div>
+            <div className="font-display text-2xl mt-1" style={{ color: "#000" }}>
+              Travaux Pratiques — Initiation à la Programmation (IAP2201)
+            </div>
+            <div className="text-sm mt-1" style={{ color: "#000" }}>
+              Licence 1 Mathématiques — Informatique
+            </div>
+          </div>
+          <div className="text-right text-sm" style={{ color: "#000" }}>
+            <div className="font-medium">{groupsLabel(groups)}</div>
+            {!blank && <div>{session.room} · {session.slot}</div>}
+            {!blank && <div>{fmtDate(new Date(session.date))}</div>}
+            {!blank && <div className="text-xs italic">Enseignant : {session.teacher || "—"}</div>}
+          </div>
+        </div>
+
+        <table className="w-full text-sm" style={{ color: "#000", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ borderBottom: "1.5px solid #000" }}>
+              <th className="text-left py-2 px-2" style={{ width: 40 }}>N°</th>
+              <th className="text-left py-2 px-2">Nom & Prénoms</th>
+              <th className="text-center py-2 px-2" style={{ width: 80 }}>Présent</th>
+              <th className="text-center py-2 px-2" style={{ width: 80 }}>Note /20</th>
+              <th className="text-left py-2 px-2" style={{ width: 200 }}>Signature</th>
+            </tr>
+          </thead>
+          <tbody>
+            {groups.flatMap((g) =>
+              (students[g] || []).map((stu, i) => {
+                const id = stu.id;
+                const r = !blank ? session.attendance[id] : null;
+                return (
+                  <tr key={`${g}-${i}`} style={{ borderBottom: "0.5px solid #999" }}>
+                    <td className="py-2 px-2 num">{groups.length > 1 ? `G${g}.${i + 1}` : i + 1}</td>
+                    <td className="py-2 px-2">{stu.name}</td>
+                    <td className="py-2 px-2 text-center">
+                      {r ? (r.present ? "✓" : "Abs.") : ""}
+                    </td>
+                    <td className="py-2 px-2 text-center num">
+                      {r && r.grade != null && !isNaN(r.grade) ? Number(r.grade).toFixed(2) : ""}
+                    </td>
+                    <td className="py-2 px-2"></td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+
+        <div className="mt-8 flex justify-between text-xs italic" style={{ color: "#000" }}>
+          <div>Total effectif : {groups.reduce((s, g) => s + (students[g] || []).length, 0)} étudiant(s)</div>
+          <div>Signature de l'enseignant : ____________________</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   ROOT APP
+   ============================================================ */
+/* ============================================================
+   COMPONENT — SetupScreen
+   ============================================================ */
+function SetupScreen({ onConfigure }) {
+  const [url, setUrl] = useState("");
+  const [key, setKey] = useState("");
+  const [testing, setTesting] = useState(false);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  async function copySql() {
+    try {
+      await navigator.clipboard.writeText(SUPABASE_SQL);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // ignore (older browsers)
+    }
+  }
+
+  async function handleConnect() {
+    setTesting(true);
+    setError("");
+    try {
+      await onConfigure(url.trim(), key.trim());
+    } catch (e) {
+      setError(e.message || String(e));
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-start justify-center p-6 py-12" style={{ background: C.bg }}>
+      <div className="max-w-2xl w-full space-y-6">
+        <div>
+          <div className="text-xs uppercase tracking-[0.2em] mb-2" style={{ color: C.accent }}>
+            Configuration initiale
+          </div>
+          <h1 className="font-display text-4xl" style={{ color: C.ink }}>
+            Connecter <span style={{ fontStyle: "italic" }}>TP Lab</span> à Supabase
+          </h1>
+          <p className="text-sm mt-2" style={{ color: C.inkSoft }}>
+            Une base de données PostgreSQL gratuite et hébergée. Vos données y sont stockées de façon
+            permanente et synchronisées en temps réel entre tous les enseignants connectés.
+          </p>
+        </div>
+
+        <section className="p-6 space-y-3" style={{ background: C.paper, border: `1px solid ${C.rule}` }}>
+          <h2 className="font-display text-lg" style={{ color: C.ink }}>Étape 1 — Créer un projet Supabase</h2>
+          <ol className="text-sm space-y-2 pl-5 list-decimal" style={{ color: C.inkSoft }}>
+            <li>Rendez-vous sur <a href="https://supabase.com" target="_blank" rel="noopener noreferrer" style={{ color: C.accent, textDecoration: "underline" }}>supabase.com</a> et créez un compte (l'offre gratuite suffit largement)</li>
+            <li>Cliquez sur <strong>New project</strong>, donnez-lui un nom et choisissez un mot de passe (conservez-le)</li>
+            <li>Sélectionnez la région la plus proche (ex. <em>West Europe</em> ou <em>Central Europe</em>)</li>
+            <li>Attendez ~2 minutes que le projet soit prêt</li>
+          </ol>
+        </section>
+
+        <section className="p-6 space-y-3" style={{ background: C.paper, border: `1px solid ${C.rule}` }}>
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-lg" style={{ color: C.ink }}>Étape 2 — Créer les tables</h2>
+            <button onClick={copySql}
+              className="text-xs px-3 py-1.5 hover:opacity-80"
+              style={{ background: C.bg, border: `1px solid ${C.rule}`, color: C.ink }}>
+              {copied ? "Copié ✓" : "Copier le SQL"}
+            </button>
+          </div>
+          <p className="text-sm" style={{ color: C.inkSoft }}>
+            Dans Supabase, ouvrez <strong>SQL Editor</strong> (menu de gauche), cliquez <strong>New query</strong>,
+            collez le script ci-dessous, puis <strong>Run</strong>.
+          </p>
+          <pre className="text-xs p-3 overflow-auto" style={{ background: C.bg, border: `1px solid ${C.rule}`, color: C.ink, maxHeight: 200, fontFamily: "ui-monospace, monospace" }}>{SUPABASE_SQL}</pre>
+        </section>
+
+        <section className="p-6 space-y-4" style={{ background: C.paper, border: `1px solid ${C.rule}` }}>
+          <h2 className="font-display text-lg" style={{ color: C.ink }}>Étape 3 — Vos clés de connexion</h2>
+          <p className="text-sm" style={{ color: C.inkSoft }}>
+            Dans Supabase, ouvrez <strong>Project Settings → Data API</strong>. Vous y trouverez :
+          </p>
+          <div>
+            <label className="text-xs uppercase tracking-wider mb-2 block" style={{ color: C.inkMuted }}>
+              URL du projet
+            </label>
+            <input value={url} onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://xxxxxxxxxxxx.supabase.co"
+              className="w-full px-3 py-2 text-sm outline-none"
+              style={{ background: C.bg, border: `1px solid ${C.rule}`, color: C.ink, fontFamily: "ui-monospace, monospace" }} />
+          </div>
+          <div>
+            <label className="text-xs uppercase tracking-wider mb-2 block" style={{ color: C.inkMuted }}>
+              Clé publique « anon » (anon public key)
+            </label>
+            <textarea value={key} onChange={(e) => setKey(e.target.value)}
+              placeholder="eyJhbGciOi..."
+              rows={3}
+              className="w-full px-3 py-2 text-xs outline-none"
+              style={{ background: C.bg, border: `1px solid ${C.rule}`, color: C.ink, fontFamily: "ui-monospace, monospace" }} />
+          </div>
+
+          {error && (
+            <div className="p-3 text-xs flex items-start gap-2"
+              style={{ background: C.absentSoft, border: `1px solid ${C.absent}`, color: C.absent }}>
+              <span>✗</span><span>{error}</span>
+            </div>
+          )}
+
+          <button onClick={handleConnect}
+            disabled={!url.trim() || !key.trim() || testing}
+            className="w-full px-4 py-3 text-sm font-medium text-white hover:opacity-90 transition disabled:opacity-40"
+            style={{ background: C.accent }}>
+            {testing ? "Test de connexion…" : "Se connecter à Supabase"}
+          </button>
+        </section>
+
+        <div className="text-xs italic text-center" style={{ color: C.inkMuted }}>
+          La clé « anon » est conçue pour être publique — elle est protégée par les règles RLS de votre base.<br />
+          Vos identifiants sont stockés dans ce navigateur uniquement, jamais transmis ailleurs.
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   COMPONENT — ConnectionBadge (small status pill in header)
+   ============================================================ */
+function ConnectionBadge({ status }) {
+  const map = {
+    connected: { bg: C.presentSoft, border: C.present, color: C.present, label: "Connecté", Icon: Cloud },
+    syncing:   { bg: C.warnSoft,    border: C.warn,    color: C.warn,    label: "Synchronisation…", Icon: Cloud },
+    offline:   { bg: C.absentSoft,  border: C.absent,  color: C.absent,  label: "Hors ligne", Icon: CloudOff },
+  };
+  const m = map[status] || map.connected;
+  const Icon = m.Icon;
+  return (
+    <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 text-[10px]"
+      style={{ background: m.bg, border: `1px solid ${m.border}`, color: m.color }}>
+      <Icon size={11} /> {m.label}
+    </div>
+  );
+}
+
+/* ============================================================
+   ROOT APP — Supabase-backed
+   ============================================================ */
+function App() {
+  const [config, setConfig] = useState({ url: null, key: null, ready: false, embedded: false });
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(null);
+  const [connStatus, setConnStatus] = useState("syncing");
+  const [teacher, setTeacher] = useState(null);
+  const [teachers, setTeachers] = useState([]);
+  const [sessions, setSessions] = useState([]);
+  const [students, setStudents] = useState({});
+  const [view, setView] = useState("dashboard");
+  const [selectedSessionId, setSelectedSessionId] = useState(null);
+  const [draftSession, setDraftSession] = useState(null);
+
+  const clientRef = useRef(null);
+  const channelRef = useRef(null);
+
+  // Inject font CSS once
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.innerHTML = fontFace;
+    document.head.appendChild(style);
+    return () => { document.head.removeChild(style); };
+  }, []);
+
+  // Check for saved Supabase config
+  useEffect(() => {
+    // Priority order:
+    //   1. Embedded credentials (window.TPLAB_SUPABASE_URL/_KEY) — set
+    //      by the deploy admin at the top of the HTML file.
+    //   2. localStorage — set via the in-app SetupScreen.
+    const embeddedUrl = (typeof window !== "undefined" && window.TPLAB_SUPABASE_URL) || "";
+    const embeddedKey = (typeof window !== "undefined" && window.TPLAB_SUPABASE_KEY) || "";
+    const url = embeddedUrl || localStorage.getItem(KEY_CFG_URL);
+    const key = embeddedKey || localStorage.getItem(KEY_CFG_KEY);
+    if (url && key && window.supabase) {
+      try {
+        clientRef.current = window.supabase.createClient(url, key);
+        setConfig({ url, key, ready: true, embedded: !!embeddedUrl });
+      } catch (e) {
+        setLoadError("Configuration invalide : " + e.message);
+      }
+    }
+  }, []);
+
+  // Configure new connection
+  async function configureSupabase(url, key) {
+    if (!window.supabase) throw new Error("Bibliothèque Supabase non chargée (vérifiez votre connexion internet).");
+    let client;
+    try {
+      client = window.supabase.createClient(url, key);
+    } catch (e) {
+      throw new Error("URL ou clé invalide : " + e.message);
+    }
+    // Quick test: probe the students table
+    const { error } = await client.from("students").select("id").limit(1);
+    if (error) {
+      let msg = error.message;
+      if (msg.includes("does not exist") || msg.includes("relation")) {
+        msg = "La table 'students' n'existe pas. Avez-vous bien exécuté le script SQL de l'étape 2 ?";
+      } else if (msg.toLowerCase().includes("invalid api key") || msg.toLowerCase().includes("jwt")) {
+        msg = "Clé API invalide. Vérifiez la clé 'anon public' dans Project Settings → API.";
+      }
+      throw new Error(msg);
+    }
+    localStorage.setItem(KEY_CFG_URL, url);
+    localStorage.setItem(KEY_CFG_KEY, key);
+    clientRef.current = client;
+    setConfig({ url, key, ready: true, embedded: false });
+  }
+
+  function clearConfig() {
+    if (config.embedded) {
+      window.alert("Cette installation utilise une configuration intégrée par l'administrateur du déploiement. La connexion ne peut pas être modifiée depuis l'interface.");
+      return;
+    }
+    if (!window.confirm("Se déconnecter de Supabase et revenir à l'écran de configuration ?")) return;
+    if (channelRef.current && clientRef.current) {
+      try { clientRef.current.removeChannel(channelRef.current); } catch {}
+    }
+    localStorage.removeItem(KEY_CFG_URL);
+    localStorage.removeItem(KEY_CFG_KEY);
+    localStorage.removeItem(KEY_CURRENT);
+    clientRef.current = null;
+    channelRef.current = null;
+    setConfig({ url: null, key: null, ready: false, embedded: false });
+    setLoaded(false);
+    setTeacher(null);
+    setStudents({});
+    setSessions([]);
+    setTeachers([]);
+  }
+
+  // Initial load + seed
+  useEffect(() => {
+    if (!config.ready) return;
+    let cancelled = false;
+    (async () => {
+      setConnStatus("syncing");
+      try {
+        const sb = clientRef.current;
+        const [stuRes, sesRes, teaRes] = await Promise.all([
+          sb.from("students").select("id, group_id, name, position").order("group_id").order("position"),
+          sb.from("sessions").select("*").order("date"),
+          sb.from("teachers").select("name"),
+        ]);
+        if (stuRes.error) throw stuRes.error;
+        if (sesRes.error) throw sesRes.error;
+        if (teaRes.error) throw teaRes.error;
+        if (cancelled) return;
+
+        let studentsMap = studentsRowsToMap(stuRes.data);
+
+        // Seed if no students exist yet
+        if (Object.keys(studentsMap).length === 0) {
+          const seedData = seedToStudents(SEED_STUDENTS);
+          const rows = [];
+          Object.keys(seedData).forEach((g) => {
+            seedData[g].forEach((s, i) => {
+              rows.push({ id: s.id, group_id: Number(g), name: s.name, position: i });
+            });
+          });
+          // Insert in chunks of 200 to avoid hitting API limits
+          for (let i = 0; i < rows.length; i += 200) {
+            const chunk = rows.slice(i, i + 200);
+            const { error } = await sb.from("students").insert(chunk);
+            if (error) throw new Error("Erreur de seeding : " + error.message);
+          }
+          studentsMap = seedData;
+        }
+
+        const sessionsList = (sesRes.data || []).map(sessionFromRow);
+        const teachersList = (teaRes.data || []).map((t) => t.name);
+
+        if (cancelled) return;
+        setStudents(studentsMap);
+        setSessions(sessionsList);
+        setTeachers(teachersList);
+
+        // Load local teacher choice
+        const t = localStorage.getItem(KEY_CURRENT);
+        if (t && teachersList.includes(t)) setTeacher(t);
+
+        setLoaded(true);
+        setConnStatus("connected");
+      } catch (e) {
+        if (!cancelled) {
+          setLoadError(e.message || String(e));
+          setConnStatus("offline");
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [config.ready]);
+
+  // Real-time subscriptions
+  useEffect(() => {
+    if (!config.ready || !loaded) return;
+    const sb = clientRef.current;
+    const channel = sb.channel("tplab-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "sessions" }, (payload) => {
+        if (payload.eventType === "DELETE") {
+          setSessions((s) => s.filter((x) => x.id !== payload.old.id));
+        } else {
+          const sess = sessionFromRow(payload.new);
+          setSessions((s) => {
+            const idx = s.findIndex((x) => x.id === sess.id);
+            if (idx === -1) return [...s, sess];
+            return s.map((x) => x.id === sess.id ? sess : x);
+          });
+        }
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "students" }, (payload) => {
+        setStudents((prev) => {
+          const next = { ...prev };
+          if (payload.eventType === "DELETE") {
+            const g = payload.old.group_id;
+            if (next[g]) {
+              next[g] = next[g].filter((s) => s.id !== payload.old.id);
+              if (next[g].length === 0) delete next[g];
+            }
+            return next;
+          }
+          const g = payload.new.group_id;
+          if (!next[g]) next[g] = [];
+          const stu = { id: payload.new.id, name: payload.new.name };
+          const idx = next[g].findIndex((s) => s.id === stu.id);
+          next[g] = idx === -1 ? [...next[g], stu] : next[g].map((s) => s.id === stu.id ? stu : s);
+          return next;
+        });
+      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "teachers" }, (payload) => {
+        if (payload.eventType === "DELETE") {
+          setTeachers((t) => t.filter((x) => x !== payload.old.name));
+        } else if (payload.new && payload.new.name) {
+          setTeachers((t) => t.includes(payload.new.name) ? t : [...t, payload.new.name]);
+        }
+      })
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") setConnStatus("connected");
+        else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") setConnStatus("offline");
+      });
+    channelRef.current = channel;
+    return () => {
+      try { sb.removeChannel(channel); } catch {}
+      channelRef.current = null;
+    };
+  }, [config.ready, loaded]);
+
+  async function pickTeacher(name) {
+    setTeacher(name);
+    localStorage.setItem(KEY_CURRENT, name);
+  }
+
+  async function addTeacher(name) {
+    if (!teachers.includes(name)) {
+      const { error } = await clientRef.current.from("teachers").upsert({ name });
+      if (error) { alert("Erreur : " + error.message); return; }
+      setTeachers((t) => t.includes(name) ? t : [...t, name]);
+    }
+    await pickTeacher(name);
+  }
+
+  // ---- Student / group management API (Supabase-backed) ----
+  async function addStudents(groupId, names) {
+    const next = { ...students };
+    const arr = [...(next[groupId] || [])];
+    let n = nextStudentNumber(next, groupId);
+    const added = [];
+    const rejected = [];
+    const working = { ...next, [groupId]: arr };
+    const dbRows = [];
+    let position = arr.length;
+    for (const raw of names) {
+      const name = String(raw).trim();
+      if (!name) continue;
+      const conflict = findStudentByName(working, name);
+      if (conflict) { rejected.push({ name, conflictsWith: conflict }); continue; }
+      const id = `G${groupId}-${n}`;
+      arr.push({ id, name });
+      added.push({ id, name });
+      dbRows.push({ id, group_id: Number(groupId), name, position });
+      n += 1;
+      position += 1;
+      working[groupId] = arr;
+    }
+    if (dbRows.length) {
+      const { error } = await clientRef.current.from("students").insert(dbRows);
+      if (error) { alert("Sauvegarde échouée : " + error.message); return { added: [], rejected: [...rejected, ...added.map((a) => ({ name: a.name, conflictsWith: { group: groupId, id: a.id, name: a.name }}))] }; }
+      next[groupId] = arr;
+      setStudents(next);
+    }
+    return { added, rejected };
+  }
+
+  async function updateStudent(groupId, sid, newName) {
+    const trimmed = String(newName).trim();
+    if (!trimmed) return { ok: false };
+    const conflict = findStudentByName(students, trimmed, sid);
+    if (conflict) return { ok: false, conflict };
+    const { error } = await clientRef.current.from("students").update({ name: trimmed }).eq("id", sid);
+    if (error) { alert("Erreur : " + error.message); return { ok: false }; }
+    const next = { ...students };
+    next[groupId] = (next[groupId] || []).map((s) => s.id === sid ? { ...s, name: trimmed } : s);
+    setStudents(next);
+    return { ok: true };
+  }
+
+  async function removeStudent(groupId, sid) {
+    const { error } = await clientRef.current.from("students").delete().eq("id", sid);
+    if (error) { alert("Erreur : " + error.message); return; }
+    const next = { ...students };
+    next[groupId] = (next[groupId] || []).filter((s) => s.id !== sid);
+    if (next[groupId].length === 0) delete next[groupId];
+    setStudents(next);
+  }
+
+  async function addGroup(groupId, names) {
+    if (students[groupId]) return { added: [], rejected: [] };
+    const next = { ...students, [groupId]: [] };
+    const arr = next[groupId];
+    const added = [];
+    const rejected = [];
+    const dbRows = [];
+    let n = 1;
+    for (const raw of names) {
+      const name = String(raw).trim();
+      if (!name) continue;
+      const conflict = findStudentByName(next, name);
+      if (conflict) { rejected.push({ name, conflictsWith: conflict }); continue; }
+      const id = `G${groupId}-${n}`;
+      arr.push({ id, name });
+      added.push({ id, name });
+      dbRows.push({ id, group_id: Number(groupId), name, position: n - 1 });
+      n += 1;
+    }
+    if (dbRows.length) {
+      const { error } = await clientRef.current.from("students").insert(dbRows);
+      if (error) { alert("Erreur : " + error.message); return { added: [], rejected: [] }; }
+    }
+    setStudents(next);
+    return { added, rejected };
+  }
+
+  async function removeGroup(groupId) {
+    const { error } = await clientRef.current.from("students").delete().eq("group_id", Number(groupId));
+    if (error) { alert("Erreur : " + error.message); return; }
+    const next = { ...students };
+    delete next[groupId];
+    setStudents(next);
+  }
+
+  // ---- Backup / restore ----
+  function exportBackup() {
+    const payload = {
+      app: "TP Lab", version: 1, exported_at: new Date().toISOString(),
+      data: { students, sessions, teachers },
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 16);
+    a.href = url;
+    a.download = `tplab_sauvegarde_${stamp}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function restoreBackup(jsonText) {
+    let parsed;
+    try { parsed = JSON.parse(jsonText); } catch { throw new Error("Fichier JSON invalide."); }
+    const d = parsed?.data;
+    if (!d || !d.students || !Array.isArray(d.sessions) || !Array.isArray(d.teachers))
+      throw new Error("Format invalide.");
+
+    const sb = clientRef.current;
+    // Wipe everything (id != '' matches all rows)
+    const wipes = await Promise.all([
+      sb.from("sessions").delete().neq("id", "__never__"),
+      sb.from("students").delete().neq("id", "__never__"),
+      sb.from("teachers").delete().neq("name", "__never__"),
+    ]);
+    for (const r of wipes) if (r.error) throw new Error(r.error.message);
+
+    // Insert
+    const stuRows = [];
+    Object.keys(d.students).forEach((g) => {
+      d.students[g].forEach((s, i) => {
+        stuRows.push({ id: s.id, group_id: Number(g), name: s.name, position: i });
+      });
+    });
+    for (let i = 0; i < stuRows.length; i += 200) {
+      const chunk = stuRows.slice(i, i + 200);
+      const { error } = await sb.from("students").insert(chunk);
+      if (error) throw new Error(error.message);
+    }
+
+    if (d.sessions.length) {
+      const sesRows = d.sessions.map(sessionToRow);
+      const { error } = await sb.from("sessions").upsert(sesRows);
+      if (error) throw new Error(error.message);
+    }
+    if (d.teachers.length) {
+      const teaRows = d.teachers.map((name) => ({ name }));
+      const { error } = await sb.from("teachers").upsert(teaRows);
+      if (error) throw new Error(error.message);
+    }
+
+    setStudents(d.students);
+    setSessions(d.sessions);
+    setTeachers(d.teachers);
+
+    return {
+      groups: Object.keys(d.students).length,
+      students: Object.values(d.students).reduce((s, l) => s + l.length, 0),
+      sessions: d.sessions.length,
+      teachers: d.teachers.length,
+      exported_at: parsed.exported_at,
+    };
+  }
+
+  function startSession(meta) {
+    const draft = {
+      id: newSessionId(), ...meta, teacher,
+      attendance: emptyAttendance(students, meta.groups),
+      createdAt: 0, updatedAt: 0,
+    };
+    setDraftSession(draft);
+    setSelectedSessionId(draft.id);
+    setView("session");
+  }
+
+  async function saveSession(s) {
+    const now = Date.now();
+    const toSave = { ...s, createdAt: s.createdAt || now, updatedAt: now };
+    const { error } = await clientRef.current.from("sessions").upsert(sessionToRow(toSave));
+    if (error) throw new Error("Sauvegarde échouée : " + error.message);
+    setSessions((prev) => {
+      const idx = prev.findIndex((x) => x.id === toSave.id);
+      if (idx === -1) return [...prev, toSave];
+      return prev.map((x) => x.id === toSave.id ? toSave : x);
+    });
+    setDraftSession(null);
+  }
+
+  async function deleteSession(id) {
+    if (!window.confirm("Supprimer définitivement cette séance ?")) return;
+    const { error } = await clientRef.current.from("sessions").delete().eq("id", id);
+    if (error) { alert("Erreur : " + error.message); return; }
+    setSessions((prev) => prev.filter((x) => x.id !== id));
+    setSelectedSessionId(null);
+    setDraftSession(null);
+    setView("sessions");
+  }
+
+  function openSession(id) {
+    setSelectedSessionId(id);
+    setDraftSession(null);
+    setView("session");
+  }
+
+  // ----- RENDER -----
+  if (!config.ready) {
+    return (
+      <div className="font-body">
+        <style dangerouslySetInnerHTML={{ __html: fontFace }} />
+        <SetupScreen onConfigure={configureSupabase} />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center font-body p-6" style={{ background: C.bg }}>
+        <div className="p-6 max-w-lg" style={{ background: C.paper, border: `1px solid ${C.absent}` }}>
+          <h2 className="font-display text-xl" style={{ color: C.absent }}>Erreur de connexion</h2>
+          <p className="text-sm mt-2" style={{ color: C.ink }}>{loadError}</p>
+          <button onClick={clearConfig} className="mt-4 px-4 py-2 text-sm text-white"
+            style={{ background: C.accent }}>
+            Reconfigurer la connexion
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!loaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center font-body"
+        style={{ background: C.bg, color: C.inkMuted }}>
+        Connexion à la base de données…
+      </div>
+    );
+  }
+
+  const ctxValue = {
+    students, addStudents, updateStudent, removeStudent, addGroup, removeGroup,
+  };
+
+  if (!teacher) {
+    return (
+      <StudentsCtx.Provider value={ctxValue}>
+        <div className="font-body">
+          <style dangerouslySetInnerHTML={{ __html: fontFace }} />
+          <TeacherGate teachers={teachers} onPick={pickTeacher} onAdd={addTeacher} />
+        </div>
+      </StudentsCtx.Provider>
+    );
+  }
+
+  let content = null;
+  if (view === "dashboard") {
+    content = <Dashboard sessions={sessions} teacher={teacher}
+      onOpenSchedule={() => setView("planning")} onOpenSession={openSession} />;
+  } else if (view === "planning") {
+    content = <Planning sessions={sessions}
+      onStartSession={startSession} onOpenSession={openSession} />;
+  } else if (view === "sessions") {
+    content = <SessionsList sessions={sessions} onOpenSession={openSession} />;
+  } else if (view === "groups") {
+    content = <GroupsView sessions={sessions} />;
+  } else if (view === "search") {
+    content = <StudentSearch sessions={sessions} />;
+  } else if (view === "exports") {
+    content = <Exports sessions={sessions} onExportBackup={exportBackup} onRestoreBackup={restoreBackup} />;
+  } else if (view === "session") {
+    const sess = draftSession || sessions.find((s) => s.id === selectedSessionId);
+    if (!sess) {
+      content = <div className="text-sm" style={{ color: C.inkMuted }}>Séance introuvable.</div>;
+    } else {
+      content = <SessionEditor session={sess} teacher={teacher}
+        onSave={saveSession} onDelete={() => deleteSession(sess.id)}
+        onClose={() => { setView("sessions"); setDraftSession(null); }} />;
+    }
+  }
+
+  return (
+    <StudentsCtx.Provider value={ctxValue}>
+      <div className="min-h-screen font-body" style={{ background: C.bg, color: C.ink }}>
+        <style dangerouslySetInnerHTML={{ __html: fontFace }} />
+        <header className="no-print" style={{ background: C.paper, borderBottom: `1px solid ${C.rule}` }}>
+          <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 flex items-center justify-center"
+                style={{ background: C.ink, color: C.bg }}>
+                <span className="font-display text-lg italic">L</span>
+              </div>
+              <div>
+                <div className="font-display text-xl leading-none" style={{ color: C.ink }}>
+                  TP <span style={{ fontStyle: "italic" }}>Lab</span>
+                </div>
+                <div className="text-[10px] uppercase tracking-[0.18em]" style={{ color: C.inkMuted }}>
+                  IAP2201 · L1 MI
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <ConnectionBadge status={connStatus} />
+              <button onClick={clearConfig}
+                className="hidden sm:flex items-center gap-1.5 px-2 py-2 text-xs hover:opacity-80"
+                style={{ background: C.bg, border: `1px solid ${C.rule}`, color: C.inkSoft }}
+                title="Reconfigurer Supabase">
+                <Database size={13} />
+              </button>
+              <button onClick={() => setTeacher(null)}
+                className="flex items-center gap-2 px-3 py-2 text-sm hover:opacity-80"
+                style={{ background: C.bg, border: `1px solid ${C.rule}`, color: C.ink }}>
+                <UserCircle2 size={16} />
+                <span className="font-medium">{teacher}</span>
+              </button>
+            </div>
+          </div>
+          <nav className="max-w-7xl mx-auto px-6 flex gap-1 overflow-x-auto">
+            {[
+              { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard },
+              { id: "planning", label: "Planning", icon: CalendarDays },
+              { id: "sessions", label: "Séances", icon: ClipboardList },
+              { id: "groups", label: "Groupes", icon: Users },
+              { id: "search", label: "Recherche", icon: Search },
+              { id: "exports", label: "Exports", icon: Download },
+            ].map((t) => {
+              const active = view === t.id;
+              const Icon = t.icon;
+              return (
+                <button key={t.id} onClick={() => { setView(t.id); setSelectedSessionId(null); setDraftSession(null); }}
+                  className="flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap transition"
+                  style={{
+                    color: active ? C.accent : C.inkSoft,
+                    borderBottom: active ? `2px solid ${C.accent}` : "2px solid transparent",
+                    marginBottom: -1,
+                  }}>
+                  <Icon size={15} />
+                  {t.label}
+                </button>
+              );
+            })}
+          </nav>
+        </header>
+        <main className="max-w-7xl mx-auto px-6 py-8">
+          {content}
+        </main>
+        <footer className="no-print max-w-7xl mx-auto px-6 py-6 text-xs flex justify-between flex-wrap gap-2"
+          style={{ color: C.inkMuted, borderTop: `1px solid ${C.rule}` }}>
+          <div>TP Lab · IAP2201 · Synchronisé en temps réel via Supabase</div>
+          <div>UNA · UFR-SFA · 2025-2026</div>
+        </footer>
+      </div>
+    </StudentsCtx.Provider>
+  );
+}
+
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(React.createElement(App));
+  </script>
+</body>
+</html>
